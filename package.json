@@ -3,16 +3,38 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "body-parser": "*",
+    "connect-mongo": "*",
+    "cookie-parser": "*",
+    "express": "*",
+    "express-session": "*",
+    "jexl": "*",
+    "mongodb": "*",
+    "node-es-module-loader": "*",
+    "passport": "*",
+    "passport-facebook": "*",
+    "passport-forcedotcom": "*",
+    "passport-local": "*",
+    "path": "*",
     "react": "^16.6.3",
     "react-dom": "^16.6.3",
     "react-scripts": "2.1.1"
   },
+  "devDependencies": {
+    "@salesforce-ux/design-system": "^2.7.4",
+    "node-sass": "^4.10.0",
+    "progressbar": "*",
+    "resolve-url-loader": "^3.0.0",
+    "transducers.js": "^0.3.2",
+    "velocity-animate": "^1.5.2"
+  },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "set PORT=8000 && react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
+  "proxy": "http://localhost:3000",
   "eslintConfig": {
     "extends": "react-app"
   },
