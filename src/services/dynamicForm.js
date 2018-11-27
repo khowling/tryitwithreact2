@@ -1,7 +1,7 @@
 
 import jexl from 'jexl';
 jexl.addTransform('get', function(ids, view) {
-  console.log ('jexl.Transform : ' + ids)
+  //console.log ('jexl.Transform : ' + ids)
   let df = DynamicForm.instance,
       f = df.getFormByName(view)
 
@@ -80,11 +80,11 @@ export default class DynamicForm {
       });
 
       client.open(mode, this._host  + path);
-      client.setRequestHeader ("Authorization", "OAuth " + "Junk");
-      client.withCredentials = true;
+      //client.setRequestHeader ("Authorization", "OAuth " + "Junk");
+      //client.withCredentials = true;
       
       if (mode === 'POST') {
-        console.log ('_callServer: POSTING to ['+this._host  + path+']: ' + JSON.stringify(body));
+        //console.log ('_callServer: POSTING to ['+this._host  + path+']: ' + JSON.stringify(body));
         client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         client.send(JSON.stringify(body));
       } else {
@@ -183,7 +183,7 @@ export default class DynamicForm {
      xhr.withCredentials = true;
      xhr.open("PUT", this._host + '/dform/file/' + file.name, true);
      xhr.setRequestHeader("Content-Type", file.type);
-     console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);
+     //console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);
      xhr.send(file);
    });
   }

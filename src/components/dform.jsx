@@ -1,70 +1,80 @@
 
 import React, {Component} from 'react';
-//import ReactDOM from 'react-dom';
 import jexl from 'jexl';
 import Router from './router.jsx';
 import {Field} from './dform_fields.jsx';
 import {Button, SectionHeader, RecordHeader, FormHeader} from './headers.jsx';
-import {Modal, SvgIcon, IconField, Alert, UpdatedBy } from './utils.jsx';
+import {Modal, SvgIcon, Alert, UpdatedBy } from './utils.jsx';
 import DynamicForm from '../services/dynamicForm.js';
-import async_kh from '../shared/async.js';
 import {typecheckFn} from '../shared/dform.js';
 import uploadFile from '../services/azureBlob.js';
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
-  export const _formControlState = (edit, form, val, currentState) => {
-    return async_kh(function *(edit, form, val, currentState) {
+ async function _formControlState(edit, form, val, parentrec, currentState)  {
 
-      //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
-      let df = DynamicForm.instance,
-          returnControl = {flds:{}, new_deflts: {}, invalid: false, change: currentState && false || true};
+    //console.log ("FormMain _formControlState currentState : " + JSON.stringify(currentState));
+    let df = DynamicForm.instance,
+        returnControl = {flds:{}, new_deflts: {}, invalid: false, change: currentState ? false : true};
 
-      for (let fld of form.fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
+    for (let fld of form.fields.filter(f => f.type !== 'childform' && f.type !== 'relatedlist')) {
 
+      let fctrl = { invalid: false, visible: true, dynamic_fields: null};
 
-        //console.log (`field ${fld.name}, show_when ${fld.show_when}, val ${JSON.stringify(val)}`);
-        let fctrl = { invalid: false, visible: true, dynamic_fields: null};
-        if (edit) {
-          fctrl.invalid = typecheckFn (form, fld.name, val[fld.name], (fid) => df.getForm(fid)).error
-        }
-          
-        if (fld.show_when) {
-          fctrl.visible = yield jexl.eval(fld.show_when, {rec: val, appMeta: DynamicForm.instance.appMeta});
-        }
-        // new_default_value, set if no current value in field, or current value has been set by previous default
-        //console.log (`_formControlState new_default_value ${fld.name} ${fld.default_value} ${val[fld.name]} `);
-        if (fctrl.visible && fld.default_value && ((!val[fld.name]) || (currentState && currentState.new_deflts[fld.name] === val[fld.name]))) {
-          let newdefault = yield jexl.eval(fld.default_value, {rec: val});
-          //console.log (`_formControlState new_default_value ${fld.name} val: ${val[fld.name]}   newdefault: ${newdefault}`);
-          if (val[fld.name] !== newdefault) returnControl.new_deflts[fld.name] = newdefault;
-          returnControl.change = true;
-        }
-
-        if (fld.type === 'dynamic') {
-          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}`);
-          fctrl.dynamic_fields = yield jexl.eval(fld.fieldmeta_el, {rec: val, appMeta: DynamicForm.instance.appMeta}) || [];
-          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
-        }
-
-        //console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
-        // check to see if form control state has changed from last time, if so, it will re-render the whole form!
-        if (currentState && currentState.flds[fld.name]) {
-          if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
-              !Object.is(currentState.flds[fld.name].visible, fctrl.visible) ||
-              !Object.is(currentState.flds[fld.name].dynamic_fields, fctrl.dynamic_fields))
-                returnControl.change = true;
-        } else if (fctrl.invalid || !fctrl.visible) {
-          // no current state, so much be change
-          returnControl.change = true;
-        }
-
-        if (fctrl.invalid) returnControl.invalid = true;
-        returnControl.flds[fld.name] = fctrl;
+      // --------------------  CALCULATE THE field "show_when" (expression)
+      if (fld.show_when) {
+        let context = {rec: Object.assign({}, val, {"_parent": parentrec}), appMeta: DynamicForm.instance.appMeta}
+        //console.log ("FormMain _formControlState show_when start") 
+        fctrl.visible = await jexl.eval(fld.show_when, context)
+        //console.log ("FormMain _formControlState show_when end") 
       }
-      //console.log ("FormMain _formControlState result : " + JSON.stringify(cnrt));
-      return returnControl;
-    })(edit, form, val, currentState);
+
+      //  --------------------  CALCULATE THE field "default_value" (expression)
+      // If the field is visible, and there is a default_value expression, AND if there is no current value in the field, or current value has been set by previous default
+      //console.log (`_formControlState new_default_value ${fld.name} ${fld.default_value} ${val[fld.name]} `);
+      if (edit && fctrl.visible && fld.default_value && ((!val[fld.name]) || (currentState && currentState.new_deflts[fld.name] === val[fld.name]))) {
+        let newdefault = await jexl.eval(fld.default_value, {rec: Object.assign({}, val, {"_parent": parentrec})});
+        //console.log (`_formControlState new_default_value ${fld.name} val: ${val[fld.name]}   newdefault: ${newdefault}`);
+        if (val[fld.name] !== newdefault && returnControl.new_deflts[fld.name] !== newdefault) {
+          returnControl.new_deflts[fld.name] = newdefault;
+          returnControl.change = true;
+        }
+      }
+
+      // --------------------  CALCULATE If the field has a VALID TYPE
+      if (edit) {
+        console.log (`field ${fld.name}, typecheckFn ${val[fld.name]} || ${returnControl.new_deflts[fld.name]}`);
+        fctrl.invalid = typecheckFn (form, fld.name, val[fld.name] || returnControl.new_deflts[fld.name], (fid) => df.getForm(fid)).error
+      }
+      
+      // --------------------  IF THE FIELD IS TYPE DYNAMIC, EVALUATE "fieldmeta_el"
+      if (fld.type === 'dynamic' && val && Object.keys(val).length>0) {
+        //console.log (`eval dynamic_fields ${fld.fieldmeta_el}`);
+        try {
+          fctrl.dynamic_fields = await jexl.eval(fld.fieldmeta_el, {rec: Object.assign({}, val, {"_parent": parentrec}), appMeta: DynamicForm.instance.appMeta}) || [];
+          //console.log (`eval dynamic_fields ${fld.fieldmeta_el}, res: ${fctrl.dynamic_fields}`);
+        } catch (err) {
+          console.error (`ERROR dynamic_fields evaluation: "${fld.fieldmeta_el}", err: ${err}`);
+        }
+      }
+
+      //console.log (`fctrl ${fld.name}, show_when ${JSON.stringify(fctrl)}`);
+      // check to see if form control state has changed from last time, if so, it will re-render the whole form!
+      if (currentState && currentState.flds[fld.name]) {
+        if (!Object.is(currentState.flds[fld.name].invalid, fctrl.invalid) ||
+            !Object.is(currentState.flds[fld.name].visible, fctrl.visible) ||
+            !Object.is(currentState.flds[fld.name].dynamic_fields, fctrl.dynamic_fields))
+              returnControl.change = true;
+      } else if (fctrl.invalid || !fctrl.visible) {
+        // no current state, so much be change
+        returnControl.change = true;
+      }
+
+      if (fctrl.invalid) returnControl.invalid = true;
+      returnControl.flds[fld.name] = fctrl;
+    }
+    //console.log ("FormMain _formControlState result");
+    return returnControl;
   }
 
 
@@ -84,9 +94,11 @@ export class FormMain extends Component {
   }
 
   shouldComponentUpdate(nextProps, nextState) {
+    //console.log (`FormMain shouldComponentUpdate [nextProps.value.state : ${nextState.formcontrol && nextState.formcontrol.change}]`);
     let shouldUpdate = false;
-    if (nextProps.value != this.props.value ||
-        nextState.formcontrol && nextState.formcontrol.change) {
+    if (nextProps.value !== this.props.value ||
+        (nextState.formcontrol && nextState.formcontrol.change) ||
+        nextState) {
         shouldUpdate =  true;
     }
     //console.log (`FormMain [nextProps.value.state : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
@@ -94,8 +106,9 @@ export class FormMain extends Component {
   }
 
   componentWillMount() {
+    //console.log ("dform - componentWillMount");
     if (this.props.value && this.props.value.status === "ready") {
-      _formControlState (this.state.edit, this.props.form, this.props.value && this.props.value.record || {}).then(succval => {
+      _formControlState (this.state.edit, this.props.form, this.props.value? this.props.value.record : {}, this.props.parentrec).then(succval => {
         this.setState ({
           changedata: succval.new_deflts,
           formcontrol: succval
@@ -105,9 +118,9 @@ export class FormMain extends Component {
   }
   // form data is ready from parent
   componentWillReceiveProps (nextProps) {
-    //console.log (`FormMain componentWillReceiveProps [nextProps.value.status : ${nextProps && nextProps.value && nextProps.value.status || 'no props.value'}]`);
+    //console.log (`FormMain componentWillReceiveProps [nextProps.value.status : ${(nextProps && nextProps.value)? nextProps.value.status : 'no props.value'}]`);
     if (nextProps.value && nextProps.value.status === "ready") {
-      _formControlState (this.state.edit, this.props.form, nextProps.value.record).then(succval => {
+      _formControlState (this.state.edit, this.props.form, nextProps.value.record, this.props.parentrec).then(succval => {
         this.setState ({
           changedata: succval.new_deflts, // wipe out any changes???
           formcontrol: succval,
@@ -119,42 +132,44 @@ export class FormMain extends Component {
 
   // Called form the Field
   _fieldChange(dynamicFieldName, d) {
-    //console.log (`--------- FormMain _fieldChange got field update, [${dynamicFieldName}] ${JSON.stringify(d)}`);
+    let self = this
     if (dynamicFieldName) {
       //d = {[dynamicFieldName]: Object.assign({}, this.props.value.record[dynamicFieldName], d)};
       d = {[dynamicFieldName]: Object.assign(this.state.changedata[dynamicFieldName] || {}, d)};
     }
-
+    //console.log (`dform.jsx -FormMain: _fieldChange merging existing change: [${JSON.stringify(this.state.changedata)}], with new change [${JSON.stringify(d)}]`);
     let changedata = Object.assign({}, this.state.changedata, d);
     //console.log (`--------- FormMain _fieldChange full changedata ${JSON.stringify(changedata)}`);
-    _formControlState (this.state.edit, this.props.form, Object.assign({}, this.props.value && this.props.value.record || {}, changedata), this.state.formcontrol).then(succval => {
-
-      this.setState({
-        changedata: Object.assign(changedata, succval.new_deflts),
-        formcontrol: succval
+    _formControlState (this.state.edit, this.props.form, Object.assign({}, this.props.value ? this.props.value.record : {}, changedata), this.props.parentrec, this.state.formcontrol).then(succval => {
+      //console.log (`dform.jsx -FormMain: _fieldChange setting new changedata ${JSON.stringify(this.state.changedata)} - to - ${JSON.stringify(Object.assign(changedata, succval.new_deflts))}`)
+      self.setState({
+        changedata: Object.assign(changedata, succval.new_deflts), // add any changes in a fields default_values (expressions) into the changedata
+        formcontrol: Object.assign(succval, {"change": true})   // force a re-render
       });
-    });
+    }, err => {
+      console.error (err)
+    })
   }
 
   _save() {
     return new Promise((resolve, reject) => {
       let self = this,
           df = DynamicForm.instance,
-          body =  (this.props.value && this.props.value.record._id) && Object.assign({_id: this.props.value.record._id}, this.state.changedata) || this.state.changedata;
+          body =  (this.props.value && this.props.value.record._id)? Object.assign({_id: this.props.value.record._id}, this.state.changedata) : this.state.changedata;
 
       df.save (this.props.form._id, body, this.props.parent).then(saveval => {
-        console.log (`FormMain _save, response from server: ${JSON.stringify(saveval)}`);
+        //console.log (`FormMain _save, response from server: ${JSON.stringify(saveval)}`);
         if (this.props.form.name === 'AMS Asset Files' && body.file) {
           
-          console.log(`FormMain _save [${this.props.form.name}] _fileuploadhtml5: ${body.file.name}`);
+          //console.log(`FormMain _save [${this.props.form.name}] _fileuploadhtml5: ${body.file.name}`);
           uploadFile(body.file, progressEvt => {
-            console.log ('progress ' + progressEvt.loaded);
+            //console.log ('progress ' + progressEvt.loaded);
             
           }, `${saveval._saslocator.container_url}/${saveval.Name}?${saveval._saslocator.sas}`).then (filesaveval => {
-            console.log (`FormMain _save [${this.props.form.name}] _fileuploadhtml5: success: ${JSON.stringify(filesaveval)}`)
+            //console.log (`FormMain _save [${this.props.form.name}] _fileuploadhtml5: success: ${JSON.stringify(filesaveval)}`)
             // update body with size
             df.save (this.props.form._id, {_id: saveval._id, ContentFileSize: '' + body.file.size}, this.props.parent).then(updateval => {
-              console.log ('FormMain _save, response from server : ' + JSON.stringify(updateval));
+              //console.log ('FormMain _save, response from server : ' + JSON.stringify(updateval));
                resolve(updateval)
             })
           })
@@ -172,10 +187,11 @@ export class FormMain extends Component {
   _delete() {
     return new Promise((resolve, reject) => {
       if (window.confirm("Sure?")) {
-        var self = this,
-            df = DynamicForm.instance;
+        var df = DynamicForm.instance;
         df.delete (this.props.form._id, this.props.value.record._id, this.props.parent).then(succval => {
           resolve(succval);
+        }, err => {
+          this.setState({formcontrol: Object.assign (this.state.formcontrol, {serverError: JSON.stringify(err), change: true })})
         });
       }
     });
@@ -228,7 +244,7 @@ export class FormMain extends Component {
             then: this.props.onComplete ? (succval) => this.props.onComplete({_id: succval._id}) : (succval) => Router.navTo(true, "RecordPage", this.props.form._id, succval._id, false, true)
           }, {
             show: edit ? "F" : this.props.onComplete && "H", label: "Cancel",
-            action: this.props.onComplete ?  this.props.onComplete : Router.URLfor(true, record._id && "RecordPage" || "ListPage", this.props.form._id, record._id && record._id || null, null, true)
+            action: this.props.onComplete ?  this.props.onComplete : Router.URLfor(true, record._id ? "RecordPage" : "ListPage", this.props.form._id, record._id ? record._id : null, null, true)
           }, {
             show: !edit && "H", label: "Delete",
             action: this._delete.bind(this),
@@ -237,12 +253,12 @@ export class FormMain extends Component {
             show: !edit && "H" , label: "Edit",
             action: this.props.onComplete ? () => this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
           }, {
-            show: (!edit && this.props.form._id == "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data && record._data.length || '0'})`,
+            show: (!edit && this.props.form._id === "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data ? record._data.length : '0'})`,
             action: self._manageData.bind(self)
           }];
 
     Object.assign(record, this.state.changedata);
-    //console.log (`FormMain render ${this.props.form.name} `); //, state : ' + JSON.stringify(this.state));
+    //console.log (`FormMain render ${this.props.form.name}, ${state}`)
     return (
       <div className={this.props.inModal && "slds-modal__container w95"} >
 
@@ -250,20 +266,17 @@ export class FormMain extends Component {
           <SectionHeader title={this.props.form.name} buttons={buttons.filter(b => b.show === "H")} />
         </div>
 
-        <div className={this.props.inModal && "slds-modal__content" || "" + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal && "400px" || "auto"}}>
+        <div className={(this.props.inModal? "slds-modal__content" : "") + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal? "400px" : "auto"}}>
           <div className="slds-grid slds-wrap">
 
-            { formcontrol && this.props.form.fields.map(function(field, i) {
-              if (field.type !== 'childform' && field.type !== 'relatedlist' && field.type !== 'dynamic') {
+            { formcontrol && this.props.form.fields.filter(({type}) => type !== 'childform' && type !== 'relatedlist').map(function(field, i) {
+              if (field.type !== 'dynamic') {
                 let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
                 if (fc.visible && fc.visible.error)
-                  return (
-                    <Alert message={`dynamic field expression error ${fc.visible.error}`}/>
-                    );
-                else if (fc.visible) return (
-                  <FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>
-                  );
-              } else if (field.type === 'dynamic') {
+                  return (<Alert message={`dynamic field expression error ${fc.visible.error}`}/>)
+                else if (fc.visible) 
+                  return (<FieldWithLabel key={i} field={field} value={record[field.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, null)}/>)
+              } else  {
                 let dflds = formcontrol.flds[field.name].dynamic_fields;
                 //console.log (`dynamic field ${field.name}, dflds : ${JSON.stringify(dflds)}`);
                 if (dflds) {
@@ -274,10 +287,11 @@ export class FormMain extends Component {
                   else if (dflds)
                     return dflds.map(function(dfield, i) {
                       let fc = {visible: true, invalid: false};
-                      if (fc.visible) return  (<FieldWithLabel key={i} field={dfield} value={record[field.name] && record[field.name][dfield.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, field.name)}/>);
+                      return  (<FieldWithLabel key={i} field={dfield} value={record[field.name] && record[field.name][dfield.name]} edit={edit} fc={fc} onChange={self._fieldChange.bind(self, field.name)}/>);
                     })
                 }
               }
+              return (null)
             })}
 
             {(record._updatedBy && !edit) &&
@@ -319,7 +333,7 @@ export class FormMain extends Component {
           </div>
         </div>
 
-        <div className={this.props.inModal && "slds-modal__footer" || "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
+        <div className={this.props.inModal ? "slds-modal__footer" : "slds-col slds-col--padded slds-size--1-of-1"} style={{padding: "0.5em", textAlign: "right"}}>
           { buttons.filter(b => b.show === "F").map(function(button, i) { return (  
             <Button key={i} definition={button}/> 
              )
@@ -363,9 +377,9 @@ export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
     <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
       <div className={`slds-form-element ${edit ? '' : 'field-seperator'} ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}>
           <label className="slds-form-element__label form-element__label--small">{field.title}</label>
-          <div className="slds-form-element__control"  style={{marginLeft: edit && '0' || "15px"}}>
-            <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
-                <Field fielddef={field} value={value} edit={edit} onChange={onChange}/>
+          <div className="slds-form-element__control"  style={{marginLeft: edit ? '0' : "15px"}}>
+            <span className={(edit || field.type ==="dropdown_options")? " " : " slds-form-element__static"}>
+                <Field fielddef={field} value={value} edit={field.display === "readonly"? false : edit} onChange={onChange}/>
             </span>
             { fc.invalid && <span className="slds-form-element__help">{fc.invalid}</span> }
           </div>
@@ -377,8 +391,8 @@ export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
 export const FieldWithoutLabel = ({field, value, edit, fc, onChange}) => {
   return (
     <div className={`slds-form-element__control ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}  >
-      <span className={(edit || field.type =="dropdown_options") && " " || " slds-form-element__static"}>
-          <Field fielddef={field} value={value} edit={edit} onChange={onChange} inlist={true}/>
+      <span className={(edit || field.type === "dropdown_options")? " " : " slds-form-element__static"}>
+          <Field fielddef={field} value={value} edit={field.display === "readonly"? false : edit} onChange={onChange} inlist={true}/>
       </span>
       { fc.invalid && <span className="slds-form-element__help">{fc.invalid}</span> }
     </div>
@@ -405,8 +419,8 @@ export class ListPage extends Component {
 
     _dataChanged() {
       let df = DynamicForm.instance;
-      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
-      if (this.state.metaview.store === "mongo" || this.state.metaview.store === "ams_api") {
+      //console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
+      if (this.state.metaview.store !== "rest") {
         //df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
         df.query (this.props.form._id, this.props.query && this.props.query).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
@@ -424,7 +438,7 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { <FormHeader form={this.state.metaview} count={this.state.value.records && this.state.value.records.length || 0} buttons={[{label: "New", action: Router.URLfor(true, "RecordPage", this.props.form._id, null, {"e": true})}]}/>
+          { <FormHeader form={this.state.metaview} count={this.state.value.records ? this.state.value.records.length : 0} buttons={[{label: "New", action: Router.URLfor(true, "RecordPage", this.props.form._id, null, {"e": true})}]}/>
           }
           </div>
           { this.state.value.status === "error" &&
@@ -432,7 +446,7 @@ export class ListPage extends Component {
               <Alert message={this.state.value.message}/>
             </div>
           }
-          { this.state.value.status != "error" &&
+          { this.state.value.status !== "error" &&
           <div className="slds-col slds-size--1-of-1">
             <ListMain noheader={true} value={this.state.value} form={this.state.metaview} onDataChange={this._dataChanged.bind(this)}/>
           </div>
@@ -453,7 +467,7 @@ export class ListMain extends Component {
   constructor(props) {
     super(props);
 
-    let listfields = props.form.fields && props.form.fields.filter(m => m.display === 'list' || m.display === 'primary') || [];
+    let listfields = props.form.fields ? props.form.fields.filter(m => m.display === 'list' || m.display === 'primary') : [];
     /* KH- add "_id" field to form.store = 'metadata', so data can be used in Reference fields */
     if (props.inline && props.form.store === 'metadata') {
       listfields = [{name: '_id', display: 'list', title: 'Key', type: 'text', required: true}].concat(listfields)
@@ -486,18 +500,18 @@ export class ListMain extends Component {
     //console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
     if (this.props.parent)
       if (rowidx >= 0)
-        this.setState({editrow: {value: {status: "ready", record: records[rowidx]}, crud: view && "r" || "u"}});
+        this.setState({editrow: {value: {status: "ready", record: records[rowidx]}, crud: view ? "r" : "u"}});
       else
         this.setState({editrow: {value: {status: "ready", record: {}}, crud: "c"}});
     else
-      Router.navTo(true, "RecordPage", this.props.form._id, rowidx >= 0 && records[rowidx]._id,  !view && {"e": true} || {});
+      Router.navTo(true, "RecordPage", this.props.form._id, rowidx >= 0 && records[rowidx]._id,  !view ? {"e": true} : {});
   }
 
   /***************/
   /** inline  ****/
   _inLinefieldChange(val) {
     let editval = Object.assign(this.state.inlineCtrl.editval, val)
-    _formControlState (true, {fields: this.state.listfields}, editval).then(fc => {
+    _formControlState (true, {fields: this.state.listfields}, editval, this.props.parentrec).then(fc => {
       this.setState({inlineCtrl: Object.assign(this.state.inlineCtrl, {fc: fc, editval: editval})});
     })
   }
@@ -507,7 +521,7 @@ export class ListMain extends Component {
     let records = this.state.inlineData.records,
         editval = (rowidx >= 0) ? Object.assign({}, records[rowidx]) : {}
     
-    _formControlState (true, {fields: this.state.listfields}, editval).then(fc => {
+    _formControlState (true, {fields: this.state.listfields}, editval, this.props.parentrec).then(fc => {
       this.setState({inlineCtrl: Object.assign(this.state.inlineCtrl, {editidx: rowidx, fc: fc, editval: editval})}, () => {
         if (this.props.onDataChange) this.props.onDataChange({disableSave : true});
       })
@@ -570,10 +584,10 @@ export class ListMain extends Component {
   }
 
   render() {
-    //console.log ('ListMain render, inlineCtrl: ' + JSON.stringify(this.state.inlineCtrl) + ", editrow: " + JSON.stringify(this.props.value));
+ 
     let self = this,
-        {status, records} = this.state.inlineCtrl.enabled && this.state.inlineData || this.props.value
-
+        {status, records} = this.state.inlineCtrl.enabled? this.state.inlineData : this.props.value
+    console.log (`ListMain - render:  ${status}`) //:  + ${JSON.stringify(this.props.value)}`);
     return (
       <div className="">
           {  (!self.state.inlineCtrl.enabled) && (!this.props.noheader) &&
@@ -601,13 +615,13 @@ export class ListMain extends Component {
 
                     { !self.props.viewonly &&
                     <th className="slds-row-select" scope="col">
-                      { self.state.inlineCtrl.enabled &&
+                      { self.state.inlineCtrl.enabled ?
                       <span className="slds-truncate">
-                        <a onClick={this._inLineEdit.bind(this, -1)} style={{marginRight: "5px"}}>
+                        <button className="link-button" onClick={this._inLineEdit.bind(this, -1)} style={{marginRight: "5px"}}>
                           <SvgIcon spriteType="utility" spriteName="new" small={true}/>
-                        </a>add
+                        </button>add
                       </span>
-                      ||
+                      :
                       <span className="slds-truncate">del edit</span>
                       }
                     </th>
@@ -616,10 +630,10 @@ export class ListMain extends Component {
                   </tr>
                 </thead>
                 <tbody>
-                  {[...Array((records && records.length || 0) + (self.state.inlineCtrl.editidx === -1 && 1 || 0))].map ((z,i) => {
+                  {[...Array((records? records.length : 0) + (self.state.inlineCtrl.editidx === -1? 1 : 0))].map ((z,i) => {
                     
                     let edit = (i === self.state.inlineCtrl.editidx || (self.state.inlineCtrl.editidx === -1 && i === records.length)),
-                        row = edit === true && self.state.inlineCtrl.editval || records[i]  
+                        row = edit === true? self.state.inlineCtrl.editval : records[i]  
 
                     return (
                       <tr key={i} className="slds-hint-parent">
@@ -634,11 +648,11 @@ export class ListMain extends Component {
                         }
 
                         {self.state.listfields.map(function(field, fidx) {
-                          let listfield =  <FieldWithoutLabel field={field} value={row[field.name]} edit={edit} onChange={self._inLinefieldChange.bind(self)} fc={edit && self.state.inlineCtrl.fc && self.state.inlineCtrl.fc.flds[field.name] || {visible: true, invalid: false}}/>;
-                          if (field.display === "primary" && field.type != "reference" &&  !self.state.inlineCtrl.enabled) {
+                          let listfield =  <FieldWithoutLabel field={field} value={row[field.name]} edit={edit} onChange={self._inLinefieldChange.bind(self)} fc={(edit && self.state.inlineCtrl.fc)? self.state.inlineCtrl.fc.flds[field.name] : {visible: true, invalid: false}}/>;
+                          if (field.display === "primary" && field.type !== "reference" &&  !self.state.inlineCtrl.enabled) {
                             if (self.props.parent )
                               return (
-                              <td key={fidx}><a style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</a></td>);
+                              <td key={fidx}><button className="link-button" style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</button></td>);
                             else
                               return (
                               <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.form._id, row._id)}>{listfield}</a></td>);
@@ -650,22 +664,22 @@ export class ListMain extends Component {
                         { !self.props.viewonly &&
                           <td className="slds-row-select">
 
-                            { self.props.selected &&
+                            { self.props.selected ?
                               <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
-                            ||  edit &&
+                            :  edit ?
                               <div className="slds-button-group">
                                 <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)} disabled={self.state.inlineCtrl.fc.invalid}>Save </button>
                                 <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, false)}>Cancel </button>
                               </div>
-                            || self.state.inlineCtrl.enabled &&
+                            : self.state.inlineCtrl.enabled ?
                               <div className="slds-button-group">
-                                <a onClick={self._inLineDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
-                                <a onClick={self._inLineEdit.bind(self, i, false)} disabled={self.state.inlineCtrl.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                                <button className="link-button" onClick={self._inLineDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </button>
+                                <button className="link-button" onClick={self._inLineEdit.bind(self, i, false)} disabled={self.state.inlineCtrl.editidx} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </button>
                             </div>
-                            ||
+                            :
                               <div className="slds-button-group">
-                                <a onClick={self._ActionDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </a>
-                                <a onClick={self._ActionEdit.bind(self, i, false)} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </a>
+                                <button className="link-button" onClick={self._ActionDelete.bind(self, i)} style={{marginRight: "15px"}}><SvgIcon spriteType="utility" spriteName="clear" small={true}/>  </button>
+                                <button className="link-button" onClick={self._ActionEdit.bind(self, i, false)} ><SvgIcon spriteType="utility" spriteName="edit" small={true}/>  </button>
                               </div>
                             }
 
@@ -680,7 +694,7 @@ export class ListMain extends Component {
           </div>
           { this.state.editrow &&
             <Modal>
-                <FormMain  value={this.state.editrow.value} form={this.props.form} crud={this.state.editrow.crud} parent={this.props.parent} onComplete={this._onFinished.bind(this)} inModal={true}/>
+                <FormMain  value={this.state.editrow.value} form={this.props.form} crud={this.state.editrow.crud} parent={this.props.parent} parentrec={this.props.parentrec} onComplete={this._onFinished.bind(this)} inModal={true}/>
             </Modal>
           }
       </div>
@@ -724,11 +738,11 @@ export class RecordPage extends Component {
     let df = DynamicForm.instance,
 //          metaview = df.getForm (props.urlparam.view);
         metaview = df.getForm (props.form._id),
-        crud =  !this.props.xid && "c" || (props.e) &&  "u" || "r";
+        crud =  !this.props.xid? "c" : (props.e)?  "u" : "r"
     //console.log ('RecordPage constructor props: ' + JSON.stringify(props));
     this.state = {
       crud: crud,
-      value: (crud == 'u' || crud == 'r') ? {status: "wait", record: {}} : {status: "ready", record: {}},
+      value: (crud === 'u' || crud === 'r')? {status: "wait", record: {}} : {status: "ready", record: {}},
       metaview: metaview,
       childformfields: metaview.fields.filter(m => m.type === 'childform'),
       relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist')
@@ -744,7 +758,7 @@ export class RecordPage extends Component {
   _dataChanged() {
     //console.log ('RecordPage _dataChanged');
     let df = DynamicForm.instance;
-    if (this.state.crud == 'u' || this.state.crud == 'r') {
+    if (this.state.crud === 'u' || this.state.crud === 'r') {
       if (this.state.metaview.collection) {
         //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
         var exp_st = `${this.props.xid}|get("${this.state.metaview.name}")`;
@@ -780,7 +794,7 @@ export class RecordPage extends Component {
     if (p) {
       // some progress update
       p.then (() => {
-        console.log ('ok');
+        //console.log ('ok');
         // all done!!
       });
     }
@@ -816,7 +830,7 @@ export class RecordPage extends Component {
                 let cform = field.child_form && df.getForm(field.child_form._id);
                 if (cform) return (
                   <div key={`${cform._id}${i}`} style={{padding: "0.5em"}}>
-                    <ListMain title={field.title} parent={{form_id: self.state.metaview._id, record_id: status == 'ready' && record._id || "new", field_id: field._id }} form={cform} value={{status: status, records: status === "ready" && record[field.name] || []}} onDataChange={self._dataChanged.bind(self)}/>
+                    <ListMain title={field.title} parent={{form_id: self.state.metaview._id, record_id: status === 'ready'? record._id : "new", field_id: field._id }} parentrec={record} form={cform} value={{status: status, records: status === "ready"? record[field.name] : []}} onDataChange={self._dataChanged.bind(self)}/>
                   </div>
                   );
                 else return (

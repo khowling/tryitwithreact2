@@ -1,7 +1,7 @@
 
 export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)  {
   let fldmeta = formmeta.fields.find(f => f.name === propname);
-  console.log (`typecheckFn: validating  ${propname}<${fldmeta && fldmeta.type}>`);
+  //console.log (`typecheckFn: validating  ${propname}<${fldmeta && fldmeta.type}>`);
   if (!fldmeta) {
     if (propname === "_id" ||  propname === "_createDate" || propname === "_createdBy" || propname === "_updateDate" || propname === "_updatedBy")
       return {};
@@ -21,7 +21,7 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
       return {error: "data contains value of incorrect type : " + propname};
     else
       return {validated_value: fval || null};
-  } else if (fldmeta.type === "text" || fldmeta.type === "textarea" || fldmeta.type === "dropdown" || fldmeta.type === "email" || fldmeta.type === "formula") {
+  } else if (fldmeta.type === "text" || fldmeta.type === "textarea" || fldmeta.type === "dropdown" || fldmeta.type === "email" || fldmeta.type === "formula" || fldmeta.type === "secret") {
     if (fval && typeof fval !== 'string') return {error: "data contains value of incorrect type : " + propname};
     if (fldmeta.required && (!fval)) return {error: "required field missing : " + propname};
     return {validated_value: fval || null};

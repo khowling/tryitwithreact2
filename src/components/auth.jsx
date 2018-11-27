@@ -72,10 +72,14 @@ export class Login extends Component {
                       <span className="FBConnectButton_Text">login or register with Facebook</span>
                   </a>
                   <br/>
-                  <a href="#" className="btn btn-block btn-social btn-google-plus btn-flat"><i className="fa fa-google-plus"></i> Sign in using Google+</a>
+                  <button className="btn btn-block btn-social btn-google-plus btn-flat"><i className="fa fa-google-plus"></i> Sign in using Google+</button>
+                  <br/>
+                  <a className="slds-button slds-button_inverse" href={`${process.env.REACT_APP_SERVER_URL}/auth/salesforce?state=${encodeURIComponent(window.location.origin)}`} id="facebook_login_btn">
+                      <span>login or register with Salesforce</span>
+                  </a>
               </div>
 
-              <a href="#">I forgot my password</a><br/>
+              <a href="/#">I forgot my password</a><br/>
               <a href={Router.URLfor(true,"Register")} className="text-center">Register a new membership</a>
             </div>
           </div>
@@ -100,14 +104,14 @@ export class AuthState extends Component {
              <ul className="slds-dropdown__list" role="menu">
                { this.props.user.apps && this.props.user.apps.map(function(val, i) { return (
                <li key={i} className="slds-dropdown__item" style={{whiteSpace: "nowrap"}} role="menuitem">
-                   <a href={Router.URLfor(val.app._id)} className="slds-truncate">{val.app[Object.keys(val.app)[1]]}</a>
+                   <a href={Router.URLfor(val.app._id)} className="slds-truncate">{val.app.name}</a>
                </li>
              );})}
                <li className="slds-dropdown__item" role="menuitem">
                  <a href={Router.URLfor(true,"RecordPage", "303030303030303030363030", this.props.user._id)} className="slds-truncate">my profile</a>
                </li>
                <li className="slds-dropdown__item" role="menuitem">
-                 <a onClick={this.props.onLogout} className="slds-truncate">logout</a>
+                 <button onClick={this.props.onLogout} className="link-button" style={{"width":"100%"}}>logout</button>
                </li>
              </ul>
            </div>

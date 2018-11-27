@@ -1,44 +1,82 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## Available Scripts
 
-In the project directory, you can run:
+### simple field Types
+type: "text"
+type: "textarea"
+type: "dropdown"
+type: "boolean"
+type: "jsonarea"
+type: "image"
+type: "email"
+type: "icon"
+type: "dropdown_options"
+type: "formula"
+type: "secret"
 
-### `npm start`
+### reference fields 
 
-Runs the app in the development mode.<br>
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+lookups to other collections/forms
 
-The page will reload if you make edits.<br>
-You will also see any lint errors in the console.
+type: "reference",
+createnew_form: { _id: Forms.App},
+search_form: { _id: Forms.App},
 
-### `npm test`
+### childform fields 
 
-Launches the test runner in the interactive watch mode.<br>
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+embedded arrays of objects defined by child_form)
 
-### `npm run build`
+type: "childform",
+child_form: { _id: Forms.AppPerms},
+ _id: new ObjectID('000000000a01')
 
-Builds the app for production to the `build` folder.<br>
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### relatedlist??
 
-The build is minified and the filenames include the hashes.<br>
-Your app is ready to be deployed!
+type: "relatedlist"
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### dynamic fields
 
-### `npm run eject`
+The field definition is dependant on a related record, referenced via the expression language:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+https://github.com/TechnologyAdvice/jexl
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+    context: 'rec' is the actual document (or embedded document) at the level of the 'dynamic' field 
+    user function : get (defined at bottom of orm_mongo.js)
 
-Instead, it will copy all the configuration files and the transitive dependencies (Webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+    id | get(view)
+    view = "name" of the metaform defintion
+    id = _id of the record to get
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
-## Learn More
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+type: "dynamic",
+fieldmeta_el: "rec.app._id|get('App').userfields"
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+
+### display
+
+primary
+list
+readonly
+
+### field attributes
+
+'default_value'  - expression, realtime populate the field with a default value based on context data (ie field name based on field label)!
+'show_when' - expression, when to display the field on the form
+
+###  dynamic forms
+
+--- load
+
+RecordPage -> ListMain -> _formControlState
+ListMain -> FormMain -> _formControlState
+
+React: https://reactjs.org/docs/uncontrolled-components.html
+In most cases, we recommend using controlled components to implement forms.  To write an uncontrolled component, instead of writing an event handler for every state update, you can use a ref to get form values from the DOM
+
+
+-- update field
+
+Field (functional components), render the {value} from their props, and with onChange={onChange} prop called when a field is updated!
+
+
+Field props.OnChange -> FormMain (_fieldChange)

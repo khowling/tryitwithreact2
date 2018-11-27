@@ -178,8 +178,8 @@ export class FieldImage extends Component {
           <div className="pic-with-text" style={{backgroundImage: "url("+img_src+")"}}>
             <header>
               <div style={{margin: "8px 30px"}}>
-                <a onClick={this._clickFile.bind(this)}>upload new picture</a> |
-                <a onClick={this._selectExisting.bind(this)}> select existing picture</a>
+                <button onClick={this._clickFile.bind(this)}>upload new picture</button> |
+                <button onClick={this._selectExisting.bind(this)}> select existing picture</button>
               </div>
               <div ref="progressline"></div>
             </header>
@@ -217,9 +217,9 @@ export class FieldReference extends Component {
   /* Common          */
   /*******************/
   componentWillReceiveProps(nextProps) {
-    console.log ('FieldReference componentWillReceiveProps ')// + JSON.stringify(nextProps));
+    //console.log ('FieldReference componentWillReceiveProps ')// + JSON.stringify(nextProps));
     if (nextProps.value !== this.props.value) {
-      console.log ('the field value has been updated by the form, update the field (this will override the field state)');
+      //console.log ('the field value has been updated by the form, update the field (this will override the field state)');
       this.setState({value: nextProps.value});
     }
   }
@@ -245,7 +245,7 @@ export class FieldReference extends Component {
       // TODO : need text search logic here
       this.setState({lookup: {visible: true, fields: sform.fields, values: sform._data, offercreate: false}});
     } else {
-      console.log ('_handleLookupKeypress: ' + inval);
+      //console.log ('_handleLookupKeypress: ' + inval);
       let setLookupVals = () => {
         df.search(sform._id, inval).then(succVal => {
           this.setState({lookup: {visible: true, fields: sform.fields, values: succVal, offercreate: true}});
@@ -264,14 +264,14 @@ export class FieldReference extends Component {
 
 
     if (!data) {
-      console.log ('Field _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
+      //console.log ('Field _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
       this.setState ({value: null, lookup: resetLookup}, () => {
         if (this.props.onChange)
           this.props.onChange ({[this.props.fielddef.name]: null});
       });
     } else {
       //lookupval ={_id: data._id, search_ref: data} ;
-      console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
+      //console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
       this.setState ({value: data, lookup: resetLookup}, () => {
         if (this.props.onChange)
           this.props.onChange ({[this.props.fielddef.name]: data});   // {_id: data._id}});  IMPORTANT: This is so primary fields work!!!
@@ -280,7 +280,7 @@ export class FieldReference extends Component {
   }
 
   _newLookupRecord(row) {
-    console.log ("Field _newLookupRecord got new lookup record : " + JSON.stringify (row));
+    //console.log ("Field _newLookupRecord got new lookup record : " + JSON.stringify (row));
     this.refs.lookupinput.value = "";
     this.setState({value: row, lookup: {create: false, visible: false, values:[]}}, () => {
       if (this.props.onChange)
@@ -293,7 +293,7 @@ export class FieldReference extends Component {
     let df = DynamicForm.instance,
         self = this,
         field;
-    console.log ('FieldReference render: ' + this.props.fielddef.name + ', state.value : ' + JSON.stringify(this.state.value));
+    //console.log ('FieldReference render: ' + this.props.fielddef.name + ', state.value : ' + JSON.stringify(this.state.value));
 
     // function to generate reference search form (for seleced value in edit and view modes, and list values)
     let referenceForm = (sform, rec) => {
@@ -329,7 +329,8 @@ export class FieldReference extends Component {
         if (sform) {
           // this is here for the "metadata" - inline edit screen!
           if (this.state.value._id && sform.store === "metadata") {
-            this.setState ({value: sform._data.find(x => x._id === this.state.value._id) || { error: `missing id ${this.state.value._id}`}});
+            console.log (`TODO -- its a read only field, its a lookup to static metadata?  setting state in a render`)
+            //this.setState ({value: sform._data.find(x => x._id === this.state.value._id) || { error: `missing id ${this.state.value._id}`}});
           }
 
           if (this.props.fielddef.createnew_form)
@@ -367,7 +368,7 @@ export class FieldReference extends Component {
                   </span>
                   :
                   <span>
-                  <a onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})}><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></a>
+                  <button onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})} className="link-button"><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></button>
 
                   <input className="slds-lookup__search-input slds-input"  type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value ? "disabled" : ""}></input>
                   </span>
@@ -392,18 +393,18 @@ export class FieldReference extends Component {
 
                     {this.state.lookup.values.map(function(row, i) { return (
                     <li key={i} className="slds-lookup__item">
-                        <a onClick={self._handleLookupSelectOption.bind (self, row)}>
+                        <button onClick={self._handleLookupSelectOption.bind (self, row)} className="link-button">
                           { referenceForm(sform, row) }
-                        </a>
+                        </button>
                     </li>
                     );})}
 
                     { this.state.lookup.offercreate && cform &&
                     <li className="slds-lookup__item ">
-                       <a onClick={this._openCreate.bind(this, this.refs.lookupinput.value)} >
+                       <button onClick={this._openCreate.bind(this, this.refs.lookupinput.value)} className="link-button">
                          <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
                          Create {cform.name + ' "' + this.refs.lookupinput.value + '"'}
-                       </a>
+                       </button>
                      </li>
                     }
                     </ul>
@@ -471,7 +472,7 @@ export class FieldDate extends Component {
     let new_date = this._construct_date(date_str, time_str),
         new_date_str = new_date ? new_date.toISOString() : date_str;
 
-    console.log (`change : [new ${new_date_str}] [existing: ${existingdate_str}]`);
+    //console.log (`change : [new ${new_date_str}] [existing: ${existingdate_str}]`);
     if (new_date_str !== existingdate_str && this.props.onChange) {
         this.props.onChange ({[this.props.fielddef.name]: new_date_str});
     }
@@ -483,9 +484,9 @@ export class FieldDate extends Component {
 
   componentWillReceiveProps(nextProps) {
     if (this.props.edit) {
-      console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
+      //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
       if (nextProps.value !== this.props.value) {
-        console.log ('the field value has been updated by the form, update the field (this will override the field state)');
+        //console.log ('the field value has been updated by the form, update the field (this will override the field state)');
         let {date_str, time_str} = this._display_date(nextProps.value);
         this.refs.input_date.value = date_str;
         this.refs.input_time.value = time_str;
@@ -580,7 +581,7 @@ export class FieldDate extends Component {
 
           <div className="slds-form-element__control slds-size--6-of-12">
             <div className="slds-input-has-icon slds-input-has-icon--right">
-              <a onClick={this._showDate.bind(this,null,null,null)}><SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" /></a>
+              <button onClick={this._showDate.bind(this,null,null,null)} className="link-button"><SvgIcon spriteType="utility" spriteName="event" small={true} classOverride="slds-input__icon" /></button>
               <input ref="input_date" className="slds-input" type="text" placeholder="Pick a Date"  onBlur={this._manualDateChange.bind(this)}/>
             </div>
           </div>
@@ -644,7 +645,7 @@ export class FieldDate extends Component {
 
           <div className="slds-form-element__control slds-size--6-of-12">
             <div className="slds-input-has-icon slds-input-has-icon--right">
-              <a onClick={this._showTime.bind(this)}><SvgIcon spriteType="utility" spriteName="clock" small={true} classOverride="slds-input__icon" /></a>
+              <button onClick={this._showTime.bind(this)} className="link-button"><SvgIcon spriteType="utility" spriteName="clock" small={true} classOverride="slds-input__icon" /></button>
               <input ref="input_time" className="slds-input" type="text" placeholder="Time" onBlur={this._manualTimeChange.bind(this)}/>
             </div>
           </div>
@@ -653,7 +654,7 @@ export class FieldDate extends Component {
            <ul className="slds-lookup__list" role="presentation">
              { ["9:00 am", "9:30 am", "10:00 am", "10:30 am", "11:00 am", "11.30 am", "8:00 pm"].map((time, i) =>{ return (
              <li className="slds-lookup__item">
-               <a id="s01" onClick={this._pickTimeChange.bind(this, time)}>{time}</a>
+               <button id="s01" onClick={this._pickTimeChange.bind(this, time)} className="link-button">{time}</button>
              </li>
              )})}
             </ul>
@@ -679,6 +680,7 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
   /****************************/
 
   let _handleValueChange = function(event) {
+    //console.log (`dform_fields.jsx - Field - _handleValueChange: ${fielddef.name}: ${event.target.value}`)
     let newval = event.target.value;
     if (fielddef.type === "boolean") {
       newval = event.target.checked;
@@ -688,7 +690,7 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
   };
 
 
-  //console.log (`Field ${fielddef.name} : ${JSON.stringify(value)}`);
+  //console.log (`dform_field.jsx - Field,  ${fielddef.name} : ${JSON.stringify(value)}`);
   let field,
       df = DynamicForm.instance;
 
@@ -706,6 +708,9 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
       case 'textarea':
       case 'formula':
         field = (<span>{value}</span>);
+        break;
+      case 'secret':
+        field = (<span>*******</span>);
         break;
       case 'attachment':
         field = (<span>{value}</span>);
@@ -744,7 +749,8 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
   } else switch (fielddef.type) {
     case 'text':
     case 'email':
-      field =  <input type="text" className="slds-input" placeholder={fielddef.placeholder} value={value || ""} onChange={_handleValueChange}/>;
+    case 'secret':
+      field =  <input type={fielddef.type === "secret"? "password" : "text"} className="slds-input" placeholder={fielddef.placeholder} value={value || ""} onChange={_handleValueChange}/>;
       break;
     case 'textarea':
     case 'formula':

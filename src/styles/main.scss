@@ -183,3 +183,37 @@
      margin-left: 21px;
      padding: 2px 6px 3px;
  }
+
+
+ .link-button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    text-decoration: underline;
+    display: inline;
+    margin: 0;
+    padding: 0;
+  }
+
+.link-button:hover,
+.link-button:focus {
+  text-decoration: none;
+}
+
+.slds-dropdown__item > button {
+    position: relative;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    color: #080707;
+    white-space: nowrap;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.slds-dropdown__item > button:hover, .slds-dropdown__item > button:focus {
+    outline: 0;
+    text-decoration: none;
+    background-color: #f3f2f2;
+}

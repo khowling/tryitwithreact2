@@ -62,30 +62,48 @@ module.exports = function (passport, options) {
         }
     ));
 
-    var gotSocialLoginDetails = function(mappedUserObj, provider, provider_id, done) {
-      const user_q = {"provider.type": provider, "provider.provider_id": provider_id}
-      const user_q_cosmos = {"provider": { $elemMatch: { "type": provider, "provider_id": provider_id}}}
-      console.log (`auth.js - gotSocialLoginDetails: looking for ${JSON.stringify(user_q)}`)
-      // https://docs.mongodb.com/manual/tutorial/query-array-of-documents/
-      orm.find({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, {q: user_q_cosmos, display: "all_no_system"}).then(function success(existinguser) {
+    var findAndUpdateUser = function(mappedUserObj, provider, provider_id, accessToken, done) {
+        const 
+            UserForm = meta.FORMMETA.find(f => f._id === meta.Forms.Users),
+            user_q = {"provider.type": provider, "provider.provider_id": provider_id},
+            user_q_cosmos = {"provider": { $elemMatch: { "type": provider, "provider_id": provider_id}}}
+            
+        console.log (`auth.js - findAndUpdateUser: looking for ${JSON.stringify(user_q)}`)
+        // https://docs.mongodb.com/manual/tutorial/query-array-of-documents/
+        orm.find({form: UserForm}, {q: user_q_cosmos, display: "all_no_system"}).then((existinguser) => {
 
           if (existinguser.length == 0) {
-              mappedUserObj.provider = [{type: provider, provider_id: provider_id }]
-              console.log(`auth.js - gotSocialLoginDetails: No existing user, creating from social profile`);
+              mappedUserObj.provider = [{type: provider, provider_id: provider_id, access_token: accessToken.access_token, instance_url: accessToken.instance_url }]
+              console.log(`auth.js - findAndUpdateUser: No existing user, creating from social profile`);
 
               // exps.forms.AuthProviders
-              orm.save ({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, mappedUserObj).then(function success(newuser) {
-                      console.log (`auth.js - gotSocialLoginDetails: Saved new user`);
+              orm.save ({form: UserForm}, mappedUserObj).then(function success(newuser) {
+                      console.log (`auth.js - findAndUpdateUser: Saved new user`);
                       done(null, newuser);
                   }, function error(ee) {
-                      console.log ('auth.js - gotSocialLoginDetails: Create user error: ' + ee);
+                      console.log ('auth.js - findAndUpdateUser: Create user error: ' + ee);
                       return done(null, false, 'error creating user');
                   });
           } else if (existinguser.length > 1) {
-            console.log ("auth.js - gotSocialLoginDetails: ERROR - Found more than one user");
+            console.log ("auth.js - findAndUpdateUser: ERROR - Found more than one user");
             return done(null, false, "ERROR - Found more than one user");
           } else {
-              console.log("auth.js - gotSocialLoginDetails: Found existing user");
+              console.log("auth.js - findAndUpdateUser: Found existing user");
+
+              let updateuser = {_id: existinguser[0].provider[0]._id, type: provider, provider_id: provider_id, access_token: accessToken.access_token, instance_url: accessToken.instance_url }
+              console.log(`auth.js - findAndUpdateUser: No existing user, creating from social profile`);
+
+              // update the Users AuthProvider (comment out until COSMOS suports '$')
+              /*
+              const AuthForm = meta.FORMMETA.find(f => f._id === meta.Forms.AuthProviders)
+              orm.save ({form: AuthForm, parent: {form: UserForm, field: UserForm.fields.find((d) => d.name === "provider"), query: {_id: existinguser[0]._id}}}, updateuser).then(function success(newuser) {
+                    console.log (`auth.js - findAndUpdateUser: Saved new user`);
+                    done(null, newuser);
+                }, function error(ee) {
+                    console.log ('auth.js - findAndUpdateUser: Create user error: ' + ee);
+                    return done(null, false, 'error creating user');
+                });
+                */
               return done(null, existinguser[0]);
           }
       }, function error (e) {
@@ -102,43 +120,30 @@ module.exports = function (passport, options) {
         },
         function (accessToken, refreshToken, profile, done) {
           console.log ('FacebookStrategy : got profile: ' + JSON.stringify(profile));
-          return gotSocialLoginDetails({
+          return findAndUpdateUser({
               name: profile.name.givenName + ' ' + profile.name.familyName,
               role: "new",
               email: profile.emails[0].value
-            }, "facebook", profile.id, done);
+            }, "facebook", profile.id, {access_token: accessToken}, done);
         }));
 
     passport.use(new ForceDotComStrategy({
-            authorizationURL: 'https://bbc-idp.secure.force.com/services/oauth2/authorize',
-            tokenURL: 'https://bbc-idp.secure.force.com/services/oauth2/token',
-            clientID: '3MVG99qusVZJwhsnJY.PGdFYIIM_eGD7IVwzFwGMtPw0q3dAZD9iCmnBZbpJCB4hGrhwkW6Q3Uno1ymHfzUQ.',
-            clientSecret: '524803988440627480',
+            authorizationURL: 'https://login.salesforce.com/services/oauth2/authorize',
+            tokenURL: 'https://login.salesforce.com/services/oauth2/token',
+            clientID: '3MVG9fTLmJ60pJ5IeetyXhW0bT.eDxBUUvclfkEr8_2Vqx5gxvimMOqpb4JhsSrasEul8Cdze21.CFTHogiil',
+            clientSecret: '5477967329514184175',
             callbackURL: "/auth/salesforce/callback"
         },
-        function (token, tokenSecret, profile, done) {
+        function (accessToken, refreshToken, profile, done) {
           console.log ('ForceDotComStrategy : got profile: ' + JSON.stringify(profile));
-          return gotSocialLoginDetails({
-              name: 'Chatter User',
+          return findAndUpdateUser({
+              name: profile.name.givenName + ' ' + profile.name.familyName,
               role: "new",
-              email: 'chatter@email.com'
-            }, "chatter", profile.id, done);
+              email: profile.emails[0].value
+            }, "chatter", profile.id, accessToken.params, done);
         }));
 
-    // redirects the user to Facebook login, including the relay
-    router.get('/facebook', function (req, res, next) {
-
-        var startURL = req.query.state  || '/';
-        console.log ('auth.js - /auth/facebook : ' + startURL);
-        //console.log ('auth.js - /auth/facebook : user : ' + JSON.stringify(req.user));
-     //   if (req.user) {
-
-     //   } else {
-            passport.authenticate('facebook', {  state: startURL, scope: 'email' })(req, res, next);
-     //   }
-    });
-
-
+    router.get('/facebook', (req, res, next) => passport.authenticate('facebook', {state: req.query.state  || '/', scope: 'email' })(req, res, next))
     router.get('/facebook/callback',
 /*
         passport.authenticate('facebook', { successRedirect: '/',
@@ -168,11 +173,28 @@ module.exports = function (passport, options) {
 
     );
 
-    router.get('/salesforce', passport.authenticate('forcedotcom'));
 
-    router.get('/salesforce/callback',
-        passport.authenticate('forcedotcom', { successRedirect: '/#home',
-            failureRedirect: '/' }));
+    router.get('/salesforce', (req, res, next) => passport.authenticate('forcedotcom', { scope: ["api", "openid", "id", "profile", "email", "refresh_token"], state: req.query.state  || '/', scope: 'email' })(req, res, next))
+    router.get('/salesforce/callback', (req, res, next) => {
+        console.log ('auth.js - /auth/salesforce/callback: custom callback to handle the state');
+        // supplying a function to 'authenticate' makes this a Custom Callback,
+        // When using a custom callback, it becomes the application's responsibility to establish a session
+        passport.authenticate('forcedotcom', (err, user, info) => {
+
+            if (err) { return next(err); }
+            if (!user) { return res.redirect('/'); }
+
+            // res.send(req.user);
+            console.log('auth.js - /auth/facebook/callback: authenticate, err : ' + JSON.stringify(err) + ' user : ' + JSON.stringify(user) + ' info : ' + JSON.stringify(info));
+            req.logIn(user, function(err){
+                if (err) {
+                    return next(err);
+                }
+                console.log ('auth.js - /auth/facebook/callback: req.logIn successm now : redirect user to relaystate: ' + req.query.state);
+                res.redirect(req.query.state || '/');
+            })
+        })(req,res,next)
+    })
 
 
     router.post('/ajaxlogin', function (req, res, next) {

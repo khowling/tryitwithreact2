@@ -38,10 +38,10 @@ export class Tile extends Component {
 export class AdminTileList extends Component {
   render () {
     let df = DynamicForm.instance,
-        metaview = df.getForm (),
+        //metaview = df.getForm (),
         fids = this.props.formids || seq(df.appMeta, compose(filter (x => x.store !== "metadata"), map(x => x._id)));
 
-    console.log ('TileList render : ' + metaview.length);
+    //console.log ('TileList render : ' + metaview.length);
     return (
       <div className="slds-section slds-is-open" style={{padding: "0.5em"}}>
         <div className="slds-section__title">

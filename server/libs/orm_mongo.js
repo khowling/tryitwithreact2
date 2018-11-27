@@ -1,26 +1,21 @@
 
-const express = require('express'),
-    router = express.Router(),
+const 
+  express = require('express'),
 //    Grid = require('gridfs-stream'),  // write to mongo grid filesystem
 //  , fs = require('fs') // TESTING ONLY
-    mongo = require('mongodb'),
 //    GridStore = require('mongodb').GridStore,
-    ObjectID = require('mongodb').ObjectID,
-    jexl = require('jexl'),
-    meta = require('../libs/orm_mongo_meta')
+  ObjectID = require('mongodb').ObjectID,
+  jexl = require('jexl'),
+  meta = require('../libs/orm_mongo_meta')
 
 
-var typecheckFn, async_kh;
+
 //var System = require('es-module-loader').System;
 //System.transpiler = 'babel'; // use babel 5.x.x NOT 6
-var NodeESModuleLoader = require('node-es-module-loader')
-var loader = new NodeESModuleLoader(/* optional basePath */);
-
-loader.import('./src/shared/async.js').then(async_mod => {
-  console.log ('Setting shared module async ') //+ async_mod);
-  async_kh = async_mod.default;
-}, errval => console.log ('ERROR Setting shared module async ' + errval));
-
+const 
+  NodeESModuleLoader = require('node-es-module-loader'),
+  loader = new NodeESModuleLoader(/* optional basePath */);
+var typecheckFn
 loader.import('./src/shared/dform.js').then(dform_mod => {
   console.log ('Setting shared module typecheckFn ' )//+ dform_mod);
   typecheckFn = dform_mod.typecheckFn;
@@ -30,6 +25,7 @@ module.exports = function(options) {
 
   var db = options.db;
   var exps = {};
+  const FORM_METADATA_ID = "303030303030303030313030"
 
   var genQuery = function (query, form, parentFieldname) {
     let mquery = {};
@@ -102,12 +98,36 @@ module.exports = function(options) {
     return mquery;
   }
 
+  // ======================================================================= FIND
   exps.find = function (formdef, query, context) {
     return new Promise(function (resolve, reject)  {
       let appMeta =  meta.FORMMETA.concat (context && context.appMeta || []);
       //console.log (`find() formdef: ${JSON.stringify(formdef)},  query: ${JSON.stringify(query)}] with context [app: ${context && context.app.name}, appMeta: ${appMeta.length}]`);
       
-      /* search form meta-data for 'reference' fields to resolve (also search through 'childform' subforms) */
+
+      /* ------------------------------------------------------------------------
+        projectionAndLookups: Search the form meta-data for 'reference' fields that we need to resolve (also search through 'childform' subforms) 
+        WARNING: recursive! this function recurses over any childforms for reference and dynamic fields 
+
+        PARAMETERS
+          display: 
+            what fields to include ('all', 'primary', 'list')
+          form:
+            the form of the primary record
+          parentField:
+            if childform
+          dynamicField: 
+
+        RETURNS
+          projection: 
+            https://docs.mongodb.com/manual/tutorial/project-fields-from-query-results/
+            The fields from the document that we want to return (field list)
+          lookups: (field.type === 'reference')
+            metaform details of the lookups we will need to resolve 
+            result.lookups.concat(child_result.lookups),
+          dynamics: (field.type === 'dynamic')
+            We only know the field types once we have the data record, so lets mark it now, and do the jexp at harvest time
+      */
       var projectionAndLookups = function (display, form, parentField, dynamicField) {
         //console.log(`find() projectionAndLookups [display: ${display}] [form: ${form.name}] [parent: ${parentField}] [dynamicField: ${dynamicField}]`);
         var result = {projection: {}, lookups: [], dynamics: []};
@@ -120,7 +140,7 @@ module.exports = function(options) {
           }
         } else {
           // get all system fields on top level collection
-          if (form._id === meta.Forms.formMetadata) {
+          if (form._id === FORM_METADATA_ID) {
             result.projection["_data"] = 1
           }
           if (display === 'all') {
@@ -194,25 +214,40 @@ module.exports = function(options) {
         return result;
       };
 
-      /* Harvest lookup ids from primary document for foriegn key lookup */
-      /* if subq is specified, update the docs with the lookup values */
-      /* RETURNS: {'form_id': {form: <JSON form>, keys: ['id', 'id']}} */
-      var processlookupids = function (fieldsandlookups, docs, subq) {
-        return async_kh(function *(fieldsandlookups, docs, subq) {
+      /* ------------------------------------------------------------------------
+        processlookupids: Resolve all the 'reference' & 'dynamic' field types from the 'projectionAndLookups' method
+        PARAMETERS
+          fieldsandlookups: 
+            result of the 'projectionAndLookups'
+          docs
+            the primary document(s) for witch we need to resolve
+          subq: 
+            if subq is null: 'harvest mode' - extract all the id's from the primary document(s) to run the subqueries
+            if subq is specified, update the primary document(s) with the lookup values obtained from the subq
+
+        RETURNS
+          if !subq (harvest): {'form_id': {form: <JSON form>, keys: ['id', 'id']}} 
+          id subq: docs
+      */
+      var processlookupids = async (fieldsandlookups, docs, subq) => {
 
           let harvest = !subq,
-              processFn = (doc, lookup, lookupkeys, subq) => {
+              processFn = (doc, lookup, lookupkeys, subq) => {  // doc = primary doc, lookup = ?, lookupkeys = (object: key = form, value Sets of Ids to query), 
                 let harvest = !subq,
                     fval = lookup.dynamic_field_name  === undefined ? doc[lookup.reference_field_name] : doc[lookup.dynamic_field_name] && doc[lookup.dynamic_field_name][lookup.reference_field_name];
 
                 if (fval) {
                   if (harvest) { //--------------------- harvest mode
                     try {
-                      //console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
-                        if (fval._id)
-                          lookupkeys[lookup.search_form_id].add(fval._id);
-                        else
+                      console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
+                        if (fval._id) {
+                          // NEED THIS, as can just compaire === ObjectId, always different, Set doesnt work either!
+                          if (lookupkeys[lookup.search_form_id].length === 0 || lookupkeys[lookup.search_form_id].findIndex(k => k.toString() === fval._id.toString()) === -1) {
+                            lookupkeys[lookup.search_form_id].push(fval._id); 
+                          }
+                        } else {
                           fval = {error: `no _id`};
+                        }
                     } catch (e) {
                       console.log (e + ' Warning : lookup value not in format of ObjectId:  field : ' + lookup.reference_field_name + ', val: ' + JSON.stringify(fval));
                     }
@@ -232,20 +267,40 @@ module.exports = function(options) {
           var lookupkeys = {};
           for (var doc of docs) { // for each data row
 
+            // ------------------------------------------------------ Look for Lookups in Dynamic fields  - Harvest only
             if (harvest) {
               fieldsandlookups.dynamic_lookups = [];
               for (let d of fieldsandlookups.dynamics) {
-                console.log (`find() processlookupids (harvest) got dynamic [field: ${d.parent_field_name}.${d.reference_field_name}] [${d.dynamic_form_ex}]`);
-                // console.log (`find() processlookupids ${JSON.stringify(doc, null, 2)}`);
-                let dynamic_fields = yield jexl.eval(d.dynamic_form_ex, Object.assign({rec: d.parent_field_name && doc[d.parent_field_name] || doc}, context));
-                // console.log (`find() processlookupids (harvest) : got dynamics result ${JSON.stringify(dynamic_fields, null, 2)}`);
+                console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamic [field: ${d.parent_field_name}.${d.reference_field_name}] [${d.dynamic_form_ex}]`);
+                console.log (`find() processlookupids ${JSON.stringify(doc, null, 2)}`);
+                let dynamic_fields = null
+                if (d.parent_field_name) {
+                  console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamic on childform`)
+                  // TODO - process all records in array!
+                  if (Array.isArray(doc[d.parent_field_name])) {
+                    try {
+                      dynamic_fields = await jexl.eval(d.dynamic_form_ex, Object.assign({rec: doc[d.parent_field_name][0] }, context));
+                    } catch (err) {
+                      console.error (`orm_mongo.js - find - processlookupids: (harvest) jexl ${d.dynamic_form_ex}`, err)
+                    }
+                  }
+                } else {
+                  // the dynamic field is on top level document
+                  try {
+                    dynamic_fields = await jexl.eval(d.dynamic_form_ex, Object.assign({rec: doc}, context));
+                  } catch (err) {
+                    console.error (`orm_mongo.js - find - processlookupids: (harvest) jexl ${d.dynamic_form_ex}`, err)
+                  }
+                }
+                
+                console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamics result ${JSON.stringify(dynamic_fields, null, 2)}`);
                 if (dynamic_fields && dynamic_fields.error) {
                   return {error: 'find() error execting dynamic field expression  ['+d.dynamic_form_ex+'] : ' + JSON.stringify(dynamic_fields.error)};
                 } else if (dynamic_fields) {
-                  console.log (`find()  processlookupids : validate dynamic fields data ${d.reference_field_name} : ${JSON.stringify(dynamic_fields)}`);
+                  console.log (`orm_mongo.js - find - processlookupids: (harvest) validate dynamic fields data ${d.reference_field_name} : ${JSON.stringify(dynamic_fields)}`);
                   let dynamicfieldsandLookups = projectionAndLookups ('all_no_system', {fields: dynamic_fields}, d.parent_field_name /*parentFieldName */, d.reference_field_name /* dynamicField*/ );
                   for (let l of dynamicfieldsandLookups.lookups) {
-                    if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
+                    if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = [];
                     if (l.parent_field_name) for (let edoc of doc[l.parent_field_name]) {
                       //console.log (`find() processlookupids (harvest) : call processFn [dynamic field: ${l.dynamic_field_name}] [fieldname: ${l.reference_field_name}] on ${JSON.stringify(edoc,null,2)}`);
                       processFn(edoc, l, lookupkeys, subq);
@@ -256,15 +311,16 @@ module.exports = function(options) {
                   fieldsandlookups.dynamic_lookups = fieldsandlookups.dynamic_lookups.concat(dynamicfieldsandLookups.lookups);
                   console.log ('additional dynamic_lookups ' + fieldsandlookups.dynamic_lookups.length);
                 } else {
-                  console.error (`**ERROR: find() eval [${d.dynamic_form_ex}] no results`, JSON.stringify({rec: d.parent_field_name && doc[d.parent_field_name] || doc}));
+                  console.log (`orm_mongo.js - find - processlookupids: (harvest)  eval [${d.dynamic_form_ex}] no results`);
                 }
               }
             }
 
+            // ------------------------------------------------------ Lookups (plus any lookups from the dynamic fields above)
             for (let l of harvest ? fieldsandlookups.lookups : fieldsandlookups.lookups.concat(fieldsandlookups.dynamic_lookups)) { // for each 'reference' field from 'projectionAndLookups'
               //if (harvest && !l.search_form_id) continue; // no recorded search form, so dont run subquery
               // if in harvest mode, initialise lookupkeys array
-              if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = new Set();
+              if (harvest && !lookupkeys[l.search_form_id])  lookupkeys[l.search_form_id] = [];
               //console.log (`find() processlookupids found lookup [harvest: ${harvest}] [parent: ${l.parent_field_name}] [field: ${l.reference_field_name}]`);
               if (l.parent_field_name && Array.isArray(doc[l.parent_field_name])) for (let edoc of doc[l.parent_field_name]) {
                 processFn(edoc, l, lookupkeys, subq);
@@ -273,24 +329,24 @@ module.exports = function(options) {
             }
 
           }
-          if (!subq) {
+          if (harvest) {
+
             return lookupkeys;
           } else {
             return docs;
           }
-        })(fieldsandlookups, docs, subq);
       };
 
       /* run subquery */
-      var runsubquery = function (form, objids, pfld) {
+      var runsubquery = function (display, form, objids, pfld) {
         return new Promise(function (resolve, reject)  {
           let q = { _id: { $in: objids }};
 
-          let fieldsandlookups = projectionAndLookups('primary', form, null, true);
+          let fieldsandlookups = projectionAndLookups(display, form, null, true);
 
-          console.log(`find() runsubquery() find in collection: ${form.collection}, query: ${JSON.stringify(q)}`);
+          console.log(`find() runsubquery() find in collection: ${form.collection}, query: ${JSON.stringify(q)}, projection: ${JSON.stringify(fieldsandlookups.projection)}`);
           q.partition_key = 0
-          db.collection(form.collection).find(q, fieldsandlookups.projection).toArray(function (err, docs) {
+          db.collection(form.collection).find(q, {projection: fieldsandlookups.projection}).toArray(function (err, docs) {
               if (err) reject(err);
               else {
 
@@ -299,7 +355,7 @@ module.exports = function(options) {
                 // need to call process lookupids in update mode to format the reference fields
                 // TODO: Should this be done on the client??
 
-                if (objids.length > docs.length && form._id === meta.Forms.formMetadata) {
+                if (objids.length > docs.length && form._id === FORM_METADATA_ID) {
                   let metares = [];
                   for (let lid of objids) {
                     if (docs.filter(r => r._id === lid).length == 0)  {
@@ -316,12 +372,12 @@ module.exports = function(options) {
                 }
                 resolve({formid: form._id, records: docs});
               }
-          }).catch((err) => {reject(err)});
+          })
         });
       };
 
       /* flow control - run sub queries in parrallel & call alldonefn(docs) when done! */
-      var runallsubqueries = function (lookups, lookupkeys) {
+      var runallsubqueries = function (display, lookupkeys) {
         return new Promise(function (resolve, reject)  {
           let subq_res = {};
           if (Object.keys(lookupkeys).length == 0) {
@@ -344,7 +400,7 @@ module.exports = function(options) {
                     }
                   } else if (form.store === "mongo") {
                     // console.log ('find() runallsubqueries, mongo searchform, use form to resolve lookups : ' + form.name);
-                    promises.push(runsubquery (form, keys));
+                    promises.push(runsubquery (display, form, keys));
                   } else {
                     subq_res[form._id] = {};
                   }
@@ -407,13 +463,13 @@ module.exports = function(options) {
       if (fieldsandlookups.error) {
         reject(fieldsandlookups.error)
       } else {
-        let retfn = function (err, doc) {
+        const retfn = function (err, doc) {
           if (err ) {
             console.log('find() find ERROR :  ' + err);
             reject (err);
           } else if ((findone && doc == null) || (!findone && doc.length == 0)) {
             console.log("find() no records retuned") // ' + JSON.stringify(doc));
-            resolve(doc);
+            return resolve(doc);
           } else {
 
             console.log("find() got records"); // ' + JSON.stringify(doc));
@@ -436,7 +492,7 @@ module.exports = function(options) {
                 processlookupids(fieldsandlookups, findone && [doc] || doc).then(lookupkeys => {
                   console.log("find() got query for foriegn key lookup, now run subqueries"); // + JSON.stringify(lookupkeys));
 
-                  runallsubqueries(fieldsandlookups.lookups, lookupkeys).then(function (succVal) {
+                  runallsubqueries('primary', lookupkeys).then(function (succVal) {
                     if (succVal) {
                       // console.log("find() runallsubqueries success, now process lookupids, recs:" + (findone && "1" || doc.length));
                       processlookupids (fieldsandlookups, findone && [doc] || doc, succVal).then(() => resolve(doc));
@@ -463,13 +519,13 @@ module.exports = function(options) {
         // its find one, DOESNT RETURN A CURSOR
         if (findone) {
           mquery.partition_key = 0
-          console.log(`find() findOne in [collection: ${collection}] [query:  ${JSON.stringify(mquery)}]`);
-          db.collection(collection).findOne(mquery, fieldsandlookups.projection, retfn)
+          console.log(`find() findOne in [collection: ${collection}] [query:  ${JSON.stringify(mquery)}, projection: ${JSON.stringify(fieldsandlookups.projection)}]`);
+          db.collection(collection).findOne(mquery, {projection: fieldsandlookups.projection}, retfn)
         } else {
           mquery.partition_key = 0
-          console.log(`find() find in collection: ${collection} [query:  ${JSON.stringify(mquery)}]`);
+          console.log(`find() find in collection: ${collection} [query:  ${JSON.stringify(mquery)}, projection: ${JSON.stringify(fieldsandlookups.projection)}]]`);
 
-          db.collection(collection).find(mquery, fieldsandlookups.projection, {}).toArray(retfn)
+          db.collection(collection).find(mquery, {projection: fieldsandlookups.projection}).toArray(retfn)
         }
       }
     }).catch(function (err) {
@@ -575,8 +631,7 @@ module.exports = function(options) {
       // console.log('save() collection: '+collection+' userdoc: ' + JSON.stringify(userdoc));
       // build the field set based on metadata - NOT the passed in JSON!
       // 'allowchildform'  if its a INSERT of a TOP LEVEL form, allow a childform to be passed in (used by auth.js)
-      var validateSetFields = function (isInsert, form, dataval, embedField, allowchildform, existing_rec) {
-        return async_kh(function *(isInsert, form, dataval, embedField, allowchildform, existing_rec) {
+      var validateSetFields = async (isInsert, form, dataval, embedField, allowchildform, existing_rec) => {
 
           var isarray = Array.isArray(dataval),
                 reqval = isarray && dataval || [dataval],
@@ -590,6 +645,7 @@ module.exports = function(options) {
               if (rv._id) return {error: "Insert request, data already contains key (_id) : " + rv._id};
               // generate new ID.
               tv._id = new ObjectID();
+              tv.partition_key = 0
               tv._createDate = new Date();
               tv._createdBy = context && {_id: ObjectID(context.user._id)};
               tv._updateDate = new Date();
@@ -613,7 +669,7 @@ module.exports = function(options) {
               } else if ('dynamic_field' in tcres) {
                 // DONE : Validate dynamic files, function needs to be sync generator
                 console.log (`save() validateSetFields, dynamic_fields validation [el: ${tcres.dynamic_field.fieldmeta_el}] :  [rec: ${JSON.stringify(Object.assign({}, existing_rec, rv),null,2)}]`);
-                let dynamic_fields = yield jexl.eval(tcres.dynamic_field.fieldmeta_el, Object.assign({rec: Object.assign({}, existing_rec, rv)}, context));
+                let dynamic_fields = await jexl.eval(tcres.dynamic_field.fieldmeta_el, Object.assign({rec: Object.assign({}, existing_rec, rv)}, context));
                 console.log ("dynamic_fields validation : " + JSON.stringify(dynamic_fields));
                 if ((!dynamic_fields) || dynamic_fields.error) return {error: "data contains dynamic field, but error evaluating expression: " + tcres.dynamic_field.fieldmeta_el};
 
@@ -688,7 +744,7 @@ module.exports = function(options) {
             setval.push(tv);
           }
           return {data: isarray && setval || setval[0]};
-        })(isInsert, form, dataval, embedField, allowchildform, existing_rec);
+        //})(isInsert, form, dataval, embedField, allowchildform, existing_rec);
       };
 
       if (formdef.parent || !isInsert) {
@@ -703,9 +759,9 @@ module.exports = function(options) {
             //console.log('/db/'+collection+'  set or push a embedded document :' + parentid);
             try {
               // TODO: use genQuery?
-              query = {_id: new ObjectID(formdef.parent.query._id)};
+              query = {_id: new ObjectID(formdef.parent.query._id), partition_key: 0};
             } catch (e) {
-              return reject ("save() parent.record_id not acceptable format : " + formdef.parent.query._id);
+              return reject ("save() parent.query._id not acceptable format : " + formdef.parent.query._id);
             }
             /***** TRYING TO DO EMBEDDED ARRAY inside EMBEDDED ARRAY, BUT MONGO DOESNT SUPPORT NESTED POSITIONAL OPERATORS
              var embedsplit = formdef.parent.field.name.split('.');
@@ -736,7 +792,7 @@ module.exports = function(options) {
               }
 
               console.log(`save() update [collection: ${collection}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
-              query.partition_key = 0
+              
               db.collection(collection).update(query, update, function (err, out) {
                 console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
                 if (err) {
@@ -754,7 +810,7 @@ module.exports = function(options) {
             let query, update;
 
             try {
-              query = {_id: new ObjectID(userdoc._id)};
+              query = {_id: new ObjectID(userdoc._id), partition_key: 0};
             } catch (e) {
               return reject  ("save() _id not acceptable format : " + userdoc._id);
             }
@@ -766,7 +822,7 @@ module.exports = function(options) {
                 update = { '$set': validatedUpdates.data};
 
               console.log(`save() update [collection: ${collection}] [query: ${JSON.stringify(query)}] update: ${JSON.stringify(update)}`);
-              query.partition_key = 0
+              
               db.collection(collection).update (query, update,  function (err, out) {
                 console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
                 if (err) {
@@ -792,19 +848,41 @@ module.exports = function(options) {
           else
             insert = validatedUpdates.data;
 
-          console.log(`save() insert <${collection}>: insert: ${JSON.stringify(insert)}`);
-          insert.partition_key = 0
-          db.collection(collection).insert (insert, function (err, out) {
-            console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
-            if (err) {
-                reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
-            } else {
-              if (Array.isArray(userdoc))
+          console.log(`orm_mongo.js - save():  insert <${collection}>: insert: ${JSON.stringify(insert)}`);
+
+          if (!Array.isArray(userdoc)) {
+            db.collection(collection).insertOne (insert, function (err, out) {
+              console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+              if (err) {
+                  reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+              } else {
+                // COSMOSDB SPECIFIC CODE UGH!
+                if (formdef.form._id === FORM_METADATA_ID && insert.store === "mongo") {
+                  console.log(`orm_mongo.js - save():  Inserted a new formMetadata mongo collection`)
+                  try { 
+                    db.command({ shardCollection: `${options.dbname}.${insert.collection}`, key: { partition_key:  "hashed" }}).then(() => {
+                      resolve ({_id: insert._id});
+                    }, (err)=> {
+                      reject (err);
+                    })
+                  } catch (err) {
+                      reject (err);
+                  }
+                } else {
+                  resolve ({_id: insert._id});
+                }
+              }
+            });
+          } else {
+            db.collection(collection).insertMany (insert, function (err, out) {
+              console.log ('save() res : ' + JSON.stringify(out) + ', err : ' + err);
+              if (err) {
+                  reject (err); // {'ok': #recs_proceses, 'n': #recs_inserted, 'nModified': #recs_updated}
+              } else {
                 resolve (out);
-              else
-                resolve ({_id: insert._id});
-            }
-          });
+              }
+            });
+          }
         });
       }
     }).catch(function (err) {

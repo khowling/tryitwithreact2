@@ -24,7 +24,8 @@ const
 module.exports = function(options) {
 
   var orm = require ("../libs/orm_mongo")(options),
-      orm_ams = require ("../libs/orm_ams")
+      orm_ams = require ("../libs/orm_ams"),
+      orm_sfdc = require ("../libs/orm_sfdc")
 
   console.log ('setting up dform routes ')
   var db = options.db
@@ -203,7 +204,16 @@ module.exports = function(options) {
       }).catch((e)=> {
         return returnJsonError(res, e)
       })
-    } else {
+    } else if (formdef.store === "sfdc") {
+
+      orm_sfdc.find (formdef.form, query, req.session.context).then((j) => {
+        res.json(validate_store_json_result (formdef.form, j, (query && query._id), req.session.context)); 
+      }, (e) => {
+        return returnJsonError(res, e)
+      }).catch((e)=> {
+        return returnJsonError(res, e)
+      })
+    }else {
       return returnJsonError(res, `unsupported form store ${formdef.store}`)
     }
   })
@@ -385,6 +395,7 @@ module.exports = function(options) {
           systemMeta.push(systemMetabyId[String(meta.Forms.FileMeta)]); // apps that need to work with files
           systemMeta.push(systemMetabyId[String(meta.Forms.iconSearch)]); // apps that need to work with icons
           systemMeta.push(systemMetabyId[String(meta.Forms.Users)]); // apps that need to work with users
+ 
           systemMeta.push(systemMetabyId[String(meta.Forms.App)]); // apps that need to work with users app-specific dynamic fields
           systemMeta.push(systemMetabyId[String(meta.Forms.ComponentMetadata)]); // needed for the router props
 

@@ -30,7 +30,7 @@ class TimeLineItem extends Component {
                   <div className="slds-grid wrap">
                     <div className="slds-col slds-size--1-of-1 slds-text-body--regular">
                       <p className="slds-truncate">
-                        <a href="#">{this.props.title}</a>
+                        <a href="/#">{this.props.title}</a>
                       </p>
                     </div>
                   </div>
@@ -42,19 +42,19 @@ class TimeLineItem extends Component {
                     <li className="slds-list__item slds-m-right--large">
                       <dl className="slds-dl--inline">
                         <dt className="slds-dl--inline__label" style={{float: "left", clear: "left"}}>Time:</dt>
-                        <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}><a href="#">Feb 23, 2015 11:00am–12:00pm</a></dd>
+                        <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}><a href="/#">Feb 23, 2015 11:00am–12:00pm</a></dd>
                       </dl>
                     </li>
                     <li className="slds-list__item">
                       <dl className="slds-dl--inline">
                         <dt className="slds-dl--inline__label" style={{float: "left", clear: "left"}}>Location:</dt>
-                        <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}><a href="#">300 Pike St, San Francisco CA</a></dd>
+                        <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}><a href="/#">300 Pike St, San Francisco CA</a></dd>
                       </dl>
                     </li>
                   </ul>
                   <dl className="slds-dl--inline slds-text-body--small">
                     <dt className="slds-dl--inline__label" style={{float: "left", clear: "left"}}>Name:</dt>
-                    <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}><a href="#">Lei Chan</a>, <a href="#">Jason Dewar</a>, <a href="#">Gwen Jones</a> and <a href="#">Pete Schaffer</a></dd>
+                    <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}><a href="/#">Lei Chan</a>, <a href="/#">Jason Dewar</a>, <a href="/#">Gwen Jones</a> and <a href="/#">Pete Schaffer</a></dd>
                   </dl>
                   </span>
                 :
@@ -63,7 +63,7 @@ class TimeLineItem extends Component {
                       <dl className="slds-dl--inline">
                         <dt className="slds-dl--inline__label" style={{float: "left", clear: "left"}}>To:</dt>
                         <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}>
-                          <a href="#">Lei Chan</a>
+                          <a href="/#">Lei Chan</a>
                         </dd>
                       </dl>
                     </li>
@@ -71,7 +71,7 @@ class TimeLineItem extends Component {
                       <dl className="slds-dl--inline">
                         <dt className="slds-dl--inline__label" style={{float: "left", clear: "left"}}>From:</dt>
                         <dd className="slds-dl--inline__detail" style={{float: "left", paddingLeft: "0.25rem"}}>
-                          <a href="#">Jason Dewar</a>
+                          <a href="/#">Jason Dewar</a>
                         </dd>
                       </dl>
                     </li>

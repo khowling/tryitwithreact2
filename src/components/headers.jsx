@@ -91,7 +91,7 @@ export class RecordHeader extends Component {
   render() {
     let isformmeta = this.props.form === "303030303030303030313030";
 
-    console.log ("Form " + this.props.form.name + ", icon :" + this.props.form.icon);
+    //console.log ("Form " + this.props.form.name + ", icon :" + this.props.form.icon);
     return (
       <div className="slds-page-header ">
         <div className="slds-grid">
@@ -153,7 +153,7 @@ export class RecordHeader extends Component {
               <dt>
                 <p className="slds-text-heading--label slds-truncate" title="Field 3">Field 3</p>
               </dt>
-              <dd><a href="#">Hyperlink</a></dd>
+              <dd><button>Hyperlink</button></dd>
             </dl>
           </div>
           <div className="slds-col--padded slds-size--1-of-4">

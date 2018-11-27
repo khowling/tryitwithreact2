@@ -64,8 +64,8 @@ const initapp = async () => {
 
     // routes
     // routes are the last thing to be initialised!
-    app.use('/auth', require('./routes/auth')(passport, {db: db}));
-    app.use('/api', require('./routes/dform')({db: db}));
+    app.use('/auth', require('./routes/auth')(passport, {db: db,  dbname: dbname}));
+    app.use('/api', require('./routes/dform')({db: db, dbname: dbname}));
 
     /// catch 404 and forward to error handler
     app.use(function (req, res, next) {

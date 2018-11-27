@@ -246,9 +246,18 @@ const FORMMETA = [
                     name: "url",
                     title: "REST Endpoint",
                     type: "text",
-                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api'",
+                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api'  || rec['store'] == 'sfdc'",
                     placeholder: "No Spaces please!",
                     required: "rec['store'] == 'rest'"
+                },
+                {
+                    name: "oauth2_auth",
+                    title: "API Auth",
+                    type: "reference",
+                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api'  || rec['store'] == 'sfdc'",
+                    search_form: { _id: Forms.AuthProviders},
+                    required: false,
+                    _id: new ObjectID('000000000104'),
                 },
                 {
                     name: "externalid",
@@ -325,6 +334,7 @@ const FORMMETA = [
                 {
                     name: "source",
                     title: "Field Source (xpath or jsonpath from API)",
+                    show_when: "rec['_parent']['store'] == 'rest' || rec['_parent']['store'] == 'ams_api' || rec['_parent']['store'] == 'sfdc'",
                     type: "text",
                     required: false
                 },
@@ -391,6 +401,10 @@ const FORMMETA = [
                         {
                           name: "Dynamic",
                           key: "dynamic"
+                        },
+                        {
+                          name: "secret",
+                          key: "secret"
                         }
                     ]
                 },
@@ -408,6 +422,10 @@ const FORMMETA = [
                         {
                           name: "List",
                           key: "list"
+                        },
+                        {
+                          name: "ReadOnly",
+                          key: "readonly"
                         }
                       ]
                 },
@@ -629,6 +647,7 @@ const FORMMETA = [
 
                 {
                     name: "type",
+                    display: "primary",
                     title: "Auth Provider Type",
                     type: "dropdown",
                     required: true,
@@ -650,6 +669,7 @@ const FORMMETA = [
                 {
                     name: "provider_id",
                     title: "Provider Id",
+                    display: "readonly",
                     type: "text",
                     placeholder: "Field Label",
                     required: true
@@ -657,9 +677,30 @@ const FORMMETA = [
                 {
                     name: "password",
                     title: "Password",
+                    show_when: "rec['type'] != 'password'",
+                    type: "secret",
+                    required: false
+                },
+                {
+                    name: "access_token",
+                    title: "access_token",
+                    show_when: "rec['type'] != 'password'",
+                    type: "secret",
+                    required: false
+                },
+                {
+                    name: "instance_url",
+                    title: "instance_url",
+                    show_when: "rec['type'] != 'password'",
                     type: "text",
-                    placeholder: "password",
-                    required: true
+                    required: false
+                },
+                {
+                    name: "refresh_token",
+                    title: "refresh_token",
+                    show_when: "rec['type'] != 'password'",
+                    type: "secret",
+                    required: false
                 }
             ]
         },
@@ -817,7 +858,6 @@ const FORMMETA = [
                   display: "list",
                   type: "dropdown",
                   required: true,
-                  default_value: "1col",
                   dropdown_options: [
                       {
                           name: "Header",

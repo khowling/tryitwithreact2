@@ -36,14 +36,15 @@ export default class App extends Component {
   }
 
   componentWillMount() {
-    var newroute = Router.decodeCurrentURI();
-    this._loadApp(newroute);
+    //console.log ("App.jsx - COMPONENTWILLMOUNT, decodeCurrentURI to get appid and _loadApp")
+    this._loadApp(Router.decodeCurrentURI().appid)
   }
 
-  _loadApp(newroute) {
-    this.dynamicForm.loadApp(newroute.appid).then ((val) => {
+  _loadApp(appid) {
+    console.log (`App.jsx - _loadApp with appid from url: ${appid}`)
+    this.dynamicForm.loadApp(appid).then (() => {
       if (this.dynamicForm.app) {
-        //console.log ("App: _loadApp, loaded with the app id : " + this.dynamicForm.app._id);
+        //console.log (`App.jsx - _loadApp : got app from server "${this.dynamicForm.app._id}" ensureAppInUrl, so Router knows if we are changing apps`);
         Router.ensureAppInUrl (this.dynamicForm.app._id);
       }
       this.setState ({ booted: true, booterr: false, bootmsg: null, user: this.dynamicForm.user, currentApp: this.dynamicForm.app});
@@ -54,10 +55,10 @@ export default class App extends Component {
 
 
 
-  routeUpdated (newroute) {
+  routeUpdated (appid) {
     //console.log ('App: router noitified App route updated');
-    if (newroute.appid !== this.state.currentApp._id) {
-      this._loadApp(newroute);
+    if (appid !== this.state.currentApp._id) {
+      this._loadApp(appid);
     }
   }
 
@@ -67,7 +68,7 @@ export default class App extends Component {
       this.setState ({ booted: false, booterr: false,  bootmsg: "Loading....", user: null, currentApp: null}, () => {
         if (window)
           window.location.href = Router.URLfor(false,"Login");
-          this._loadApp ({hash: "Login"});
+          this._loadApp (null);
       });
     });
   }
@@ -103,7 +104,7 @@ export default class App extends Component {
                       </a>
                     </div>
                     <span className="slds-context-bar__label-action slds-context-bar__app-name">
-                      <span className="slds-truncate" title="{ props.appName || 'App Name' }">{ this.props.appName || 'App Name' }</span>
+                      <span className="slds-truncate" title="{ props.appName || 'App Name' }">{ this.state.currentApp && this.state.currentApp.name }</span>
                     </span>
                   </div>
                 </div>
@@ -123,7 +124,7 @@ export default class App extends Component {
           <ul className="slds-global-header__item slds-grid slds-grid--vertical-align-center">
 
             <AuthState user={this.state.user} currentApp={this.state.currentApp} onLogout={this._logout.bind(this)}/>
-
+{/*
             <li className="slds-dropdown-trigger slds-dropdown-trigger--click slds-m-left--x-small slds-is-open">
               <button className="slds-button" title="person name" >
                 <span className="slds-avatar slds-avatar--circle slds-avatar--medium">
@@ -131,6 +132,7 @@ export default class App extends Component {
                 </span>
               </button>
             </li>
+*/}
           </ul>
         </div>
       </header>
