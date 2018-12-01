@@ -716,7 +716,7 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
         field = (<span>{value}</span>);
         break;
       case 'boolean':
-        field = (<input name="checkbox" type="checkbox" checked={value} disabled="1" />);
+        field = (<input name="checkbox" type="checkbox" checked={value ? JSON.parse(value) : false} disabled="1" />);
         break;
       case 'jsonarea':
         field = (<span>{JSON.stringify(value, null, 4)}</span>);

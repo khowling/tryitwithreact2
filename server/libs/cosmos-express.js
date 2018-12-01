@@ -272,8 +272,9 @@ module.exports = function (connect) {
   
       destroy(sid, callback) {
         return withCallback(this.collectionReady()
-          .then(collection => collection.deleteOne({partition_key: 0, _id: this.computeStorageId(sid)}))
-          .then(() => this.emit('destroy', sid))
+          .then(collection => {
+            collection.deleteOne({partition_key: 0, _id: this.computeStorageId(sid)})
+          }).then(() => this.emit('destroy', sid))
           , callback)
       }
   

@@ -147,10 +147,15 @@ module.exports = function(options) {
 
    var validate_store_json_result = (form, store_data, single, context) => {
     //console.log (`validate_store_json_result: [${form.name}]: ${JSON.stringify(store_data)}`)
-    let entries = single ? [store_data] : store_data.value
+    let entries = single ? [store_data] : store_data
+
+    let jsonpath = (path, json) => {
+       let r = json[path[0]]
+       if (path.length >1) { return jsonpath(path.slice(1), r) } else { return r }
+    }
 
     let res = entries.map((row,i) => {
-      let r = {_id: row.Id}
+      let r = {_id: row[form.externalid]}
       if (row._saslocator) r._saslocator = row._saslocator
 
       for (let fld of form.fields) {
@@ -158,7 +163,11 @@ module.exports = function(options) {
           let childform = fld.child_form && context.appMeta.find((d) => String(d._id) === String (fld.child_form._id));
           r[fld.name] = validate_store_json_result (childform, row[fld.name], false, context)
         } else {
-          r[fld.name] = row[fld.name] == null ? null : row[fld.name].toString()
+          if (!fld.source) {
+            r[fld.name] = row[fld.name] == null ? null : row[fld.name].toString()
+          } else {
+            r[fld.name] = jsonpath(fld.source.split("."), row)
+          }
         }
       }
       return r
@@ -398,6 +407,7 @@ module.exports = function(options) {
  
           systemMeta.push(systemMetabyId[String(meta.Forms.App)]); // apps that need to work with users app-specific dynamic fields
           systemMeta.push(systemMetabyId[String(meta.Forms.ComponentMetadata)]); // needed for the router props
+          systemMeta.push(systemMetabyId[String(meta.Forms.formMetadata)]); // required for the cloneSObject jexl Transform
 
           console.log (`/formdata: getFormMeta ${userMetaids.size}`);
 

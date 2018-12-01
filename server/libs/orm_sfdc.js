@@ -38,5 +38,10 @@ const list_things =  (provider, url) => {
 
 
 exports.find = (form, query, context) => {
-    return list_things (context.user.provider.find(p => p.type === "chatter"), form.url)
+    return new Promise ((acc,rej) => {
+        
+        return list_things (context.user.provider.find(p => p.type === "chatter"), (query && query._id) ? form.url + `/${query._id}/describe` : form.url).then ((parsedData) => {
+            acc (form.source && parsedData.hasOwnProperty(form.source) ? parsedData[form.source] : parsedData)
+        }, rej1 => rej(rej1))
+    })
 }

@@ -341,11 +341,11 @@ module.exports = function(options) {
       var runsubquery = function (display, form, objids, pfld) {
         return new Promise(function (resolve, reject)  {
           let q = { _id: { $in: objids }};
+          q.partition_key = 0
 
           let fieldsandlookups = projectionAndLookups(display, form, null, true);
 
           console.log(`find() runsubquery() find in collection: ${form.collection}, query: ${JSON.stringify(q)}, projection: ${JSON.stringify(fieldsandlookups.projection)}`);
-          q.partition_key = 0
           db.collection(form.collection).find(q, {projection: fieldsandlookups.projection}).toArray(function (err, docs) {
               if (err) reject(err);
               else {
@@ -727,8 +727,9 @@ module.exports = function(options) {
 
                   if (cval._id) return {error: "data contains childform field, and data array contains existing _id: " + propname};
                   ctv._id =  new ObjectID();
-
+                  
                   for (let cpropname in cval) {
+                    console.log (`checking childform fields : ${cpropname}`)
                     let cfval = cval[cpropname]; // store the requrested property value
                     let ctcres = typecheckFn (cform, cpropname, cfval, (fid) => appMeta.find((d) =>  String(d._id) === String (fid)), ObjectID);
                     if ('error' in ctcres)

@@ -216,7 +216,7 @@ export class FormMain extends Component {
   _inlineDataFinished(save) {
     let updateState = {changedata: {}, manageData: false,  inlineData: null, serverError: null};
     if (save) {
-      let df = DynamicForm.instance;
+      const df = DynamicForm.instance;
       df.save (this.props.form._id, Object.assign({_id: this.props.value.record._id}, {"_data": this._saveInlineData})).then(succval => {
         //console.log ('FormMain _save, response from server : ' + JSON.stringify(succval));
         if (this.props.onDataChange) {
@@ -232,30 +232,60 @@ export class FormMain extends Component {
   }
 
   render() {
-
+    console.log (`FormMain - render ${this.props.value && this.props.value.ready}`)
     let self = this,
         edit = this.state.edit,
-        {state, record} = this.props.value || {state: "ready", record: {}},
+        {state, record} = this.props.value || {status: "ready", record: {}},
         formcontrol = this.state.formcontrol,
         buttons =[
           {
-            show: edit && "F", label: "Save",
+            show: edit && this.props.form.store !== 'input' && "F", title: "Save",
             action: this._save.bind(this),
             then: this.props.onComplete ? (succval) => this.props.onComplete({_id: succval._id}) : (succval) => Router.navTo(true, "RecordPage", this.props.form._id, succval._id, false, true)
           }, {
-            show: edit ? "F" : this.props.onComplete && "H", label: "Cancel",
+            show: edit && this.props.form.store === 'input' && "F", title: "Continue",
+            action: () => Promise.resolve(this.state.changedata),
+            then: this.props.onComplete
+          }, {
+            show: edit ? "F" : this.props.onComplete && "H", title: "Cancel",
             action: this.props.onComplete ?  this.props.onComplete : Router.URLfor(true, record._id ? "RecordPage" : "ListPage", this.props.form._id, record._id ? record._id : null, null, true)
           }, {
-            show: !edit && "H", label: "Delete",
+            show: !edit && "H", title: "Delete",
             action: this._delete.bind(this),
             then: self.props.onFinished ? (succval) => self.props.onFinished('delete', succval) : (succval) => Router.navTo(true, "ListPage", this.props.form._id)
           }, {
-            show: !edit && "H" , label: "Edit",
+            show: !edit && "H" , title: "Edit",
             action: this.props.onComplete ? () => this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
           }, {
-            show: (!edit && this.props.form._id === "303030303030303030313030" && record.store === "metadata") && "H" , label: `Manage Data (${record._data ? record._data.length : '0'})`,
+            show: (!edit && this.props.form._id === "303030303030303030313030" && record.store === "metadata") && "H" , title: `Manage Data (${record._data ? record._data.length : '0'})`,
             action: self._manageData.bind(self)
-          }];
+          }]
+          
+      if (this.props.form.fields && !edit) {
+
+        const cust_buttons  = this.props.form.fields.filter(m => m.type === 'button').map(m => Object.assign({}, m, {show: "H", action: ((v) => {
+            if (m.child_form) {
+              console.log ('Customer button - if child form, get data')
+              const cform = DynamicForm.instance.getForm(m.child_form._id);
+              if (cform) {
+                this.setState({"openmodelform": {value: {status: "ready", record: {}},form: cform,field_id: m._id, onComplete: (c) => {
+                  console.log (`got info from child form ${JSON.stringify(c)}`)
+                  if (c === null || typeof c === 'undefined') {
+                    // just cancel
+                    this.setState({"openmodelform": false})
+                  } else {
+                    jexl.eval('buttonform|cloneSObject(rec)', {buttonform: c, rec: record}).then(() => this.setState({"openmodelform": false}))
+                  }
+                }}})
+              } else {
+                this.setState({"openmodelform": { error: "Cannot find button child form in current app"}})
+              }
+            }
+            console.log (v)
+          })}))
+          buttons = buttons.concat (cust_buttons)
+      }
+
 
     Object.assign(record, this.state.changedata);
     //console.log (`FormMain render ${this.props.form.name}, ${state}`)
@@ -269,9 +299,9 @@ export class FormMain extends Component {
         <div className={(this.props.inModal? "slds-modal__content" : "") + " slds-form--stacked"} style={{padding: "0.5em", minHeight: this.props.inModal? "400px" : "auto"}}>
           <div className="slds-grid slds-wrap">
 
-            { formcontrol && this.props.form.fields.filter(({type}) => type !== 'childform' && type !== 'relatedlist').map(function(field, i) {
+            { formcontrol && this.props.form.fields.filter(({type}) => type !== 'childform' && type !== 'relatedlist'  && type !== 'button').map(function(field, i) {
               if (field.type !== 'dynamic') {
-                let fc = formcontrol.flds[field.name] || {visible: true, invalid: false};
+                let fc = formcontrol.flds[field.name]? formcontrol.flds[field.name] : {visible: true, invalid: false};
                 if (fc.visible && fc.visible.error)
                   return (<Alert message={`dynamic field expression error ${fc.visible.error}`}/>)
                 else if (fc.visible) 
@@ -315,7 +345,7 @@ export class FormMain extends Component {
               <Modal>
                 <div className="slds-modal__container w95">
                   <div style={{padding: "0.5em", background: "white"}}>
-                    <SectionHeader title={this.props.value.record.name} buttons={[{label: "Cancel", action: this._inlineDataFinished.bind(this, null) }, {label: "Save", disable: this.state.inlineDataDisbleSave, action: this._inlineDataFinished.bind(this, true)}]} />
+                    <SectionHeader title={this.props.value.record.name} buttons={[{title: "Cancel", action: this._inlineDataFinished.bind(this, null) }, {title: "Save", disable: this.state.inlineDataDisbleSave, action: this._inlineDataFinished.bind(this, true)}]} />
                   </div>
                   <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
                     <ListMain inline={true} form={this.props.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
@@ -341,6 +371,14 @@ export class FormMain extends Component {
           }
         </div>
 
+        { this.state.openmodelform && (
+           this.state.openmodelform.error ? 
+            <Alert type="error" message={this.state.openmodelform.error}/>
+           :
+             <Modal>
+                <FormMain  value={this.state.openmodelform.value} form={this.state.openmodelform.form} parent={{form_id: this.props.form._id, record_id: record._id, field_id: this.state.openmodelform.field_id }} parentrec={record} onComplete={this.state.openmodelform.onComplete.bind(this)} inModal={true} crud="c"/>
+            </Modal>   
+        )}
       </div>
     );
   }
@@ -410,6 +448,7 @@ export class ListPage extends Component {
         metaview: df.getForm (props.form._id),
         value: {status: "wait", records: []}
       };
+      //this.custom_buttons = this.state.metaview.fields ? this.state.metaview.fields.filter(m => m.type === 'button' && m.display === 'list') : [];
       //console.log ('ListPage constructor: '+ props.form._id);
     }
 
@@ -424,7 +463,7 @@ export class ListPage extends Component {
         //df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
         df.query (this.props.form._id, this.props.query && this.props.query).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
-          errRes  => this.setState({value: {status: "error", message: errRes.error }})
+          errRes  => this.setState({value: {status: "error", message: errRes.error.message }})
         );
       } else if (this.state.metaview.store === "rest") {
         df._callServer(this.state.metaview.url).then(succRes =>
@@ -438,12 +477,12 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { <FormHeader form={this.state.metaview} count={this.state.value.records ? this.state.value.records.length : 0} buttons={[{label: "New", action: Router.URLfor(true, "RecordPage", this.props.form._id, null, {"e": true})}]}/>
+          { <FormHeader form={this.state.metaview} count={this.state.value.records ? this.state.value.records.length : 0} buttons={[{title: "New", action: Router.URLfor(true, "RecordPage", this.props.form._id, null, {"e": true})}]}/>
           }
           </div>
           { this.state.value.status === "error" &&
             <div className="slds-col slds-size--1-of-1">
-              <Alert message={this.state.value.message}/>
+              <Alert type="error" message={this.state.value.message}/>
             </div>
           }
           { this.state.value.status !== "error" &&
@@ -473,6 +512,8 @@ export class ListMain extends Component {
       listfields = [{name: '_id', display: 'list', title: 'Key', type: 'text', required: true}].concat(listfields)
     }
 
+    //this.custom_buttons = props.form.fields ? props.form.fields.filter(m => m.type === 'button') : [];
+
     //console.log (`ListMain constructor [form ${props.form.name}] : ' + JSON.stringify(props.value)`);
     this.state = {
       listfields: listfields,
@@ -497,11 +538,11 @@ export class ListMain extends Component {
 
   _ActionEdit (rowidx, view = false) {
     let records = this.props.value.records;
-    //console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
+    console.log ("ListMain _ActionEdit rowidx :" + rowidx + ", view : " + view);
     if (this.props.parent)
-      if (rowidx >= 0)
+      if (rowidx >= 0) // edit existing row
         this.setState({editrow: {value: {status: "ready", record: records[rowidx]}, crud: view ? "r" : "u"}});
-      else
+      else // add new row
         this.setState({editrow: {value: {status: "ready", record: {}}, crud: "c"}});
     else
       Router.navTo(true, "RecordPage", this.props.form._id, rowidx >= 0 && records[rowidx]._id,  !view ? {"e": true} : {});
@@ -591,7 +632,7 @@ export class ListMain extends Component {
     return (
       <div className="">
           {  (!self.state.inlineCtrl.enabled) && (!this.props.noheader) &&
-            <SectionHeader title={this.props.title || this.props.form.name} buttons={[{label: "New", action: this._ActionEdit.bind(this, -1, false)}]} />
+            <SectionHeader title={this.props.title || this.props.form.name} buttons={[{title: "New", action: this._ActionEdit.bind(this, -1, false)}]} />
           }
           <div className="box-bo dy table-resp onsive no-pad ding">
             <div className="slds-scrollable--x">
@@ -759,7 +800,7 @@ export class RecordPage extends Component {
     //console.log ('RecordPage _dataChanged');
     let df = DynamicForm.instance;
     if (this.state.crud === 'u' || this.state.crud === 'r') {
-      if (this.state.metaview.collection) {
+      if (this.state.metaview.store !== "rest") {
         //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
         var exp_st = `${this.props.xid}|get("${this.state.metaview.name}")`;
         //console.log (`RecordPage _dataChanged jexl : ${exp_st}`);
@@ -769,7 +810,7 @@ export class RecordPage extends Component {
           //console.log ('RecordPage _dataChanged jexl error ' + errval);
           this.setState({ value: {status: "error", message: `${errval}`}});
         });
-      } else if (this.state.metaview.url)
+      } else if (this.state.store === "sfdc")
         df._callServer(this.state.metaview.url+"?_id="+this.props.urlparam.id).then(succRes =>
           this.setState({value: {status: "ready", record: succRes}})
         );

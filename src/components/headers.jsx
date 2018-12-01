@@ -29,11 +29,11 @@ export const Button = ({definition}) => {
   }
   if (typeof definition.action ===  'function') {
     return (
-      <button className="slds-button slds-button--neutral" onClick={runAction}  disabled={definition.disable || false}>{definition.label}</button>
+      <button className="slds-button slds-button--neutral" onClick={runAction}  disabled={definition.disable || false}>{definition.title}</button>
     );
   } else if (typeof definition.action ===  'string') {
     return (
-      <a className="slds-button slds-button--neutral" href={definition.action}>{definition.label}</a>
+      <a className="slds-button slds-button--neutral" href={definition.action}>{definition.title}</a>
     );
   }
 }

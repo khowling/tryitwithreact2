@@ -20,6 +20,22 @@ jexl.addTransform('toApiName', function(str) {
   return (typeof str === 'string' ? str.replace(/\s+/g, '_').toLowerCase() : null)
 });
 
+jexl.addTransform('cloneSObject', function(cloneopts, sobjectdef) {
+  let df = DynamicForm.instance,
+      newform = {
+        name: cloneopts.name,
+        store: "sfdc",
+        desc: `Cloned from Salesforce ${sobjectdef.name} definition`,
+        url: sobjectdef.sobject_url,
+        fields: sobjectdef.fields.map((sf) => { return {
+          name: sf.name,
+          title: sf.label,
+          type: "text"
+        }})}
+    console.log (`cloneSObject ${JSON.stringify(df.getFormByName("Form Metadata"))}`)
+    return df.save (df.getFormByName("Form Metadata")._id, newform)
+});
+
 let instance = null;
 export default class DynamicForm {
 
@@ -55,10 +71,11 @@ export default class DynamicForm {
     let userapprec = this.user && this.user.apps && this.user.apps.find (a => a.app._id === this.app._id);
      return (userapprec ? userapprec.appuserdata : {})
   }
+  /*
   getComponentMeta(cname) {
-    return this.getFormByName("ComponentMetadata")._data.find(cm => cm.name === cname);
+    return this.getFormByName("Component Metadata")._data.find(cm => cm.name === cname);
   }
-
+*/
   _callServer(path, mode = 'GET', body) {
     return new Promise( (resolve, reject) => {
       var client = new XMLHttpRequest();

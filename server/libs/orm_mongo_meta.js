@@ -220,6 +220,10 @@ const FORMMETA = [
                         {
                             name: "Azure AMS API",
                             key: "ams_api"
+                        },
+                        {
+                            name: "Input Form (for button)",
+                            key: "input"
                         }
                     ]
                 },
@@ -251,6 +255,13 @@ const FORMMETA = [
                     required: "rec['store'] == 'rest'"
                 },
                 {
+                    name: "source",
+                    title: "Records Source (xpath or jsonpath from API)",
+                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api' || rec['store'] == 'sfdc'",
+                    type: "text",
+                    required: false
+                },
+                {
                     name: "oauth2_auth",
                     title: "API Auth",
                     type: "reference",
@@ -263,9 +274,9 @@ const FORMMETA = [
                     name: "externalid",
                     title: "Id Path",
                     type: "text",
-                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api'",
+                    show_when: "rec['store'] == 'rest' || rec['store'] == 'ams_api' || rec['store'] == 'sfdc'",
                     placeholder: "No Spaces please!",
-                    required: "rec['store'] == 'rest' || rec['store'] == 'ams_api'"
+                    required: "rec['store'] == 'rest' || rec['store'] == 'ams_api' || rec['store'] == 'sfdc'"
                 },
                 {
                     name: "fields",
@@ -334,7 +345,7 @@ const FORMMETA = [
                 {
                     name: "source",
                     title: "Field Source (xpath or jsonpath from API)",
-                    show_when: "rec['_parent']['store'] == 'rest' || rec['_parent']['store'] == 'ams_api' || rec['_parent']['store'] == 'sfdc'",
+                    show_when: "rec['type'] != 'button' && (rec['_parent']['store'] == 'rest' || rec['_parent']['store'] == 'ams_api' || rec['_parent']['store'] == 'sfdc')",
                     type: "text",
                     required: false
                 },
@@ -405,6 +416,10 @@ const FORMMETA = [
                         {
                           name: "secret",
                           key: "secret"
+                        },
+                        {
+                          name: "Button",
+                          key: "button"
                         }
                     ]
                 },
@@ -434,6 +449,7 @@ const FORMMETA = [
                     title: "Default Value",
                     type: "formula",
                     placeholder: "Default Value",
+                    show_when: "rec['type'] != 'button'",
                     required: false
                 },
                 {
@@ -485,7 +501,7 @@ const FORMMETA = [
                     name: "child_form",
                     title: "Child Form",
                     type: "reference",
-                    show_when: "rec['type'] == 'childform' || rec['type'] == 'relatedlist'",
+                    show_when: "rec['type'] == 'childform' || rec['type'] == 'relatedlist' || rec['type'] == 'button'",
                     createnew_form: { _id: Forms.formMetadata},
                     createnew_defaults: '{"primary": "name", "others": { "type": "childform"}}',
                     search_form: { _id: Forms.formMetadata},
@@ -499,6 +515,7 @@ const FORMMETA = [
                     type: "dropdown",
                     required: false,
                     default_value: false,
+                    show_when: "rec['type'] != 'button'",
                     dropdown_options: [
                         {
                             name: "Yes",
@@ -517,7 +534,14 @@ const FORMMETA = [
                   placeholder: "context vars: rec, user, appMeta",
                   type: "formula"
                 },
-              {
+                {
+                    name: "action",
+                    title: "Button action",
+                    show_when: "rec['type'] == 'button'",
+                    placeholder: "action",
+                    type: "formula"
+                  },
+                {
                     name: "dropdown_options",
                     title: "Dropdown Options",
                     show_when: "rec['type'] == 'dropdown'",
