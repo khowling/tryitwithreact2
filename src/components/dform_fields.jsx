@@ -1,5 +1,5 @@
 
-import React, {Component} from 'react';
+import React, {Component, useState, useEffect } from 'react';
 import Router from './router.jsx';
 
 //import ProgressBar from 'progressbar'
@@ -139,7 +139,7 @@ export class FieldImage extends Component {
   }
 
   _selectExisting() {
-    let df = DynamicForm.instance,
+    const df = DynamicForm.instance,
         filemeta = df.getFormByName('FileMeta');
     if (filemeta) {
       this.setState({picselectexisting: true, filemeta: filemeta}, () => {
@@ -204,18 +204,254 @@ export class FieldImage extends Component {
   }
 }
 
+    //
+    // function to generate reference search form (for seleced value in edit and view modes, and list values)
+
+function DefaultLookupForm ({search_form, record, render}) {
+  //console.log (`DefaultLookupForm called ${search_form.name}`);
+  const df = DynamicForm.instance
+  if (!record) {
+    return  <span style={{color: "red"}}><IconField value={search_form.icon} small={true}/>no data</span>;
+  } else if (record.error) {
+    return  <span key={record._id} style={{color: "red"}}><IconField value={search_form.icon} small={true}/>{record.error}</span>;
+  } else {
+    let priimage, pritext
+    for (let fld of search_form.fields) {
+      if (fld.display === 'primary' && record[fld.name]) {
+        //console.log (`DefaultLookupForm ${fld.type} ${JSON.stringify(record[fld.name])}`);
+        if (fld.type === 'icon' || fld.type === 'image') {
+          priimage = <Field fielddef={fld}  value={record[fld.name]} inlist={true} />;
+        } else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id )
+          priimage = <IconField value={record[fld.name]} small={true}/>;
+        else if (!pritext) {
+          //pritext = <Field fielddef={fld} value={record[fld.name]}/>
+          pritext = record[fld.name]
+        }
+      }
+    }
+    if (!priimage) {
+      priimage = <IconField value={{_id:"std30"}} small={true}/>;
+    }
+    return render({pritext, priimage});
+  }
+}
+
+export function FieldReference ({fielddef, value, onChange, edit}) {
+
+  const [ lookup, setLookup ] = useState({ visible: false, values: [], open_create: false, offer_create: false})
+  const [ inputValue, setInputValue ] = useState(value)
+  const [ searchValue, setSearchValue ] = useState("")
+
+  const df = DynamicForm.instance
+  const sform = fielddef.search_form && df.getForm (fielddef.search_form._id)
+
+  // if prop value changes!
+  useEffect(() => {
+    //console.log (`InputStateful useEffect ${fielddef.name}: prop:${value} state:${inputvalue}`)
+    if (inputValue !== value)
+      setInputValue(value)
+  }, [value])
+
+  function _handleSearchKeypress(e) {
+
+    const 
+      searchval = e.target.value,
+      formid = fielddef.search_form && fielddef.search_form._id
+
+    console.log ('FieldReference _handleSearchKeypress: ' + searchval);
+    setSearchValue(searchval) // will rerender with new state
+    DynamicForm.instance.search(formid, searchval).then(searchlist => {
+      setLookup({visible: true, values: searchlist, offer_create: true})
+    }, (err) => {
+      console.error (`FieldReference _handleSearchKeypress : ${JSON.stringify(err)}`)
+    })
+  }
+  
+  function _openCreate() {
+    // TODO = replace 'name' with primary text field
+    setLookup({open_create: true, visible: false, values: [], createValue: {status: "ready", record: {name: searchValue}}});
+  }
+  
+  function _handleLookupBlur(env) {
+    console.log (`FieldReference _handleLookupBlur ${env.relatedTarget && env.relatedTarget.classList}`)
+    if ((env.relatedTarget && env.relatedTarget.classList && env.relatedTarget.classList.contains("slds-input"))) {
+      console.log ('FieldReference _handleLookupBlur - closing')
+      setLookup({visible: false, values: [], offer_create: false})
+    }
+  }
+
+  function _handleLookupRemove() {
+    setInputValue(null) // will rerender with new state
+    if (onChange) onChange({[fielddef.name]: null}) 
+  }
+
+  function _handleLookupSelectOption (data) {
+    console.log ('FieldReference _handleLookupSelectOption, clear field state, then update parent ['+fielddef.name+']')
+    //lookupval ={_id: data._id, search_ref: data} ;
+    //console.log ('FieldReference _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
+    setLookup({visible: false, values: [] })
+    setInputValue(data) // will rerender with new state
+    if (onChange) onChange({[fielddef.name]: data}) 
+
+  }
+
+  function _newLookupRecord(row) {
+    //console.log ("FieldReference _newLookupRecord got new lookup record : " + JSON.stringify (row));
+    setSearchValue("")
+    setLookup({ visible: false, values: [], open_create: false, offer_create: false})
+    setInputValue(row)
+    if (onChange) onChange({[fielddef.name]: row}) 
+  }
+
+
+  if (!sform)
+    return <Alert type="error" message={"no search_form found in app " + (fielddef.search_form && fielddef.search_form._id)}/>
+
+  else if (!edit) {
+
+    if (inputValue) {
+    
+    // this is here for the "metadata" - inline edit screen!
+    if (inputValue._id && sform.store === "metadata") {
+      console.log (`TODO -- its a read only field, its a lookup to static metadata?  setting state in a render`)
+      //this.setState ({value: sform._data.find(x => x._id === this.state.value._id) || { error: `missing id ${this.state.value._id}`}});
+    }
+
+    if (fielddef.createnew_form)
+      return (
+        <DefaultLookupForm search_form={sform} record={inputValue} render={({pritext, priimage}) => (
+          <span className="slds-pill">
+            {priimage}
+            <a href={Router.URLfor(true,"RecordPage", fielddef.createnew_form._id, inputValue._id)} className="slds-pill__label">
+              {pritext}
+            </a>
+          </span>
+        )}/>
+      )
+
+    else
+      return (
+        <DefaultLookupForm search_form={sform} record={inputValue} render={({pritext, priimage}) => (
+          
+          <div className="slds-pill__label" style={{"paddingBottom": "0.1rem"}}>
+          {priimage}
+          <span style={{"paddingLeft": "0.5rem"}}>{pritext}</span>
+          </div>
+        )}/>
+      )
+  
+    } else  {
+      return (<span/>);
+    }
+  } else { // its an EDIT
+
+    //console.log ('referencefield get search_form : ' + JSON.stringify(this.props.fielddef.search_form));
+    const cform = fielddef.createnew_form && df.getForm (fielddef.createnew_form._id)
+    
+    return (
+
+      <div className={`slds-combobox_container ${inputValue ? "slds-has-selection" : ""}`}  > 
+        <div className={`slds-combobox slds-dropdown-trigger ${lookup.visible ? "slds-is-open" : ""}`}>
+          
+        { inputValue ?
+          <DefaultLookupForm search_form={sform} record={inputValue} render={({pritext, priimage}) => (
+            <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_left-right" role="none">
+              
+                <span className="slds-icon_container slds-icon-standard-account slds-combobox__input-entity-icon" title="Account">
+                  {priimage}
+                  <span className="slds-assistive-text">Account</span>
+                </span>
+                <input className="slds-input slds-combobox__input slds-combobox__input-value" autoComplete="off"  type="text" placeholder="Select an Option" readOnly defaultValue={pritext}/>
+              
+              <button className="slds-button slds-button_icon slds-input__icon slds-input__icon_right" title="Remove selected option" onClick={_handleLookupRemove}>
+                <svg className="slds-button__icon" aria-hidden="true">
+                  <use xmlnsXlink="http://www.w3.org/1999/xlink" xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#close" />
+                </svg>
+                <span className="slds-assistive-text">Remove selected option</span>
+              </button>
+              </div>
+            )}/>
+          :
+
+          <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+            <input className="slds-input slds-combobox__input" id="combobox-id-1" aria-autocomplete="list" aria-controls="listbox-id-1" autoComplete="off"  type="text" placeholder="Search..." onChange={_handleSearchKeypress} onBlur={_handleLookupBlur} onFocus={_handleSearchKeypress} disabled={inputValue ? "disabled" : ""}/>
+            <span className="slds-icon_container slds-icon-utility-search slds-input__icon slds-input__icon_right">
+              <svg className="slds-icon slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
+                <use xmlnsXlink="http://www.w3.org/1999/xlink" xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#search" />
+              </svg>
+            </span>
+          </div>
+        }
+                      
+        { lookup.open_create ?
+          <Modal>
+            <div className="slds-modal__container w95">
+              <div style={{padding: "0.5em", background: "white"}}>
+                <FormHeader form={cform}/>
+              </div>
+              <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
+                <FormMain key={"model-"+fielddef.name} form={cform} value={lookup.createValue} crud="c" onComplete={_newLookupRecord}/>
+              </div>
+              <div className="slds-modal__footer">
+              </div>
+            </div>
+          </Modal>
+        :
+          <div className="slds-dropdown slds-dropdown_length-with-icon-7 slds-dropdown_fluid" style={{visibility: lookup.visible ? 'visible' : 'hidden'}}>
+            <ul className="slds-listbox slds-listbox_vertical" role="presentation">
+
+            { lookup.offer_create && cform && 
+              <li className="slds-lookup__item ">
+                <button onClick={_openCreate} className="link-button dont-close-on-blur">
+                  <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
+                  Create {cform.name + ' "' + searchValue + '"'}
+                </button>
+              </li>
+            }
+
+            {
+              lookup.values.map(function(row, i) { return (
+                <li key={i} className="slds-lookup__item dont-close-on-blur" onClick={() => _handleLookupSelectOption(row)} >
+        
+                  <DefaultLookupForm search_form={sform} record={row} render={({pritext, priimage}) => (
+                  <div className="slds-media slds-listbox__option slds-listbox__option_entity slds-listbox__option_has-meta" >
+                    <span className="slds-media__figure slds-listbox__option-icon">
+                      <span className="slds-icon_container slds-icon-standard-account">
+                      {priimage}
+                      </span>
+                    </span>
+                    
+                      <span className="slds-media__body">
+                        <span className="slds-listbox__option-text slds-listbox__option-text_entity">{pritext}</span>
+                        <span className="slds-listbox__option-meta slds-listbox__option-meta_entity">{sform.name}</span>
+                      </span>
+                    
+                  </div>
+                  )}/>
+                </li>
+        
+            );})}
+
+            </ul>
+          </div>
+        }
+        </div>
+      </div>
+    )
+  }
+}
+
+/*
 export class FieldReference extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      lookup: { visible: false, values: [], create: false, offercreate: false},
+      lookup: { visible: false, values: [], open_create: false, offer_create: false},
       value: props.value // needs to be mutatable
     };
   }
 
-  /*******************/
-  /* Common          */
-  /*******************/
+
   componentWillReceiveProps(nextProps) {
     //console.log ('FieldReference componentWillReceiveProps ')// + JSON.stringify(nextProps));
     if (nextProps.value !== this.props.value) {
@@ -224,54 +460,50 @@ export class FieldReference extends Component {
     }
   }
 
-  /********************/
-  /* Lookup Functions */
-  /********************/
-
   _openCreate(val) {
-
-    this.setState({lookup: {create: true, visible: false, values: [], createValue: {status: "ready", record: {name: val}}}});
+    this.setState({lookup: {open_create: true, visible: false, values: [], createValue: {status: "ready", record: {name: val}}}});
   }
 
-  _handleLookupKeypress(e) {
-    let inval = e.target.value,
-        df = DynamicForm.instance,
-        sform = this.props.fielddef.search_form && df.getForm(this.props.fielddef.search_form._id);
-        
-    if (!inval)
-      this.setState({lookup: {visible: false, fields: null, values: [], offercreate: false}});
-    else if (sform.store === "metadata") {
-      console.log ("_handleLookupKeypress: its from meta : " + JSON.stringify(sform._data));
-      // TODO : need text search logic here
-      this.setState({lookup: {visible: true, fields: sform.fields, values: sform._data, offercreate: false}});
-    } else {
-      //console.log ('_handleLookupKeypress: ' + inval);
-      let setLookupVals = () => {
-        df.search(sform._id, inval).then(succVal => {
-          this.setState({lookup: {visible: true, fields: sform.fields, values: succVal, offercreate: true}});
-        });
-      };
-      if (this.state.lookup.visible === false)
-        this.setState({lookup: {visible: true, values:[], create: false}}, setLookupVals );
-      else
-        setLookupVals();
+  _handleSearchKeypress(e) {
+
+    //if (this.state.lookup.visible === false) // open the window while waiting for the content
+    //  this.setState({lookup: {visible: true, values:[], open_create: false}}, this._handleSearchKeypress(e) );
+    //else {
+      const searchval = e && e.target && e.target.value,
+            formid = this.props.fielddef.search_form && this.props.fielddef.search_form._id
+
+
+      console.log ('FieldReference _handleSearchKeypress: ' + searchval);
+    
+      DynamicForm.instance.search(formid, searchval).then(searchlist => {
+        this.setState({lookup: {visible: true, values: searchlist, offer_create: true}});
+      }, (err) => {
+        console.error (`FieldReference _handleSearchKeypress : ${JSON.stringify(err)}`)
+      });
+    //}
+  }
+
+  _handleLookupBlur(env) {
+    console.log (`FieldReference _handleLookupBlur ${env.relatedTarget && env.relatedTarget.classList}`)
+    if ((env.relatedTarget && env.relatedTarget.classList && env.relatedTarget.classList.contains("slds-input"))) {
+      console.log ('FieldReference _handleLookupBlur - closing')
+      this.setState({lookup: {visible: false, values: [], offer_create: false}})
     }
   }
 
-
   _handleLookupSelectOption (data) {
     let resetLookup = {visible: false, values: [] };
-
+    console.log ('FieldReference _handleLookupSelectOption')
 
     if (!data) {
-      //console.log ('Field _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
+      console.log ('FieldReference _handleLookupSelectOption, clear field state, then update parent ['+this.props.fielddef.name+']');
       this.setState ({value: null, lookup: resetLookup}, () => {
         if (this.props.onChange)
           this.props.onChange ({[this.props.fielddef.name]: null});
       });
     } else {
       //lookupval ={_id: data._id, search_ref: data} ;
-      //console.log ('Field _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
+      //console.log ('FieldReference _handleLookupSelectOption, set field state, then update parent ['+this.props.fielddef.name+'] : ' + JSON.stringify(data));
       this.setState ({value: data, lookup: resetLookup}, () => {
         if (this.props.onChange)
           this.props.onChange ({[this.props.fielddef.name]: data});   // {_id: data._id}});  IMPORTANT: This is so primary fields work!!!
@@ -280,9 +512,9 @@ export class FieldReference extends Component {
   }
 
   _newLookupRecord(row) {
-    //console.log ("Field _newLookupRecord got new lookup record : " + JSON.stringify (row));
+    //console.log ("FieldReference _newLookupRecord got new lookup record : " + JSON.stringify (row));
     this.refs.lookupinput.value = "";
-    this.setState({value: row, lookup: {create: false, visible: false, values:[]}}, () => {
+    this.setState({value: row, lookup: {open_create: false, visible: false, values:[]}}, () => {
       if (this.props.onChange)
         this.props.onChange ({[this.props.fielddef.name]: row});
     });
@@ -295,33 +527,7 @@ export class FieldReference extends Component {
         field;
     //console.log ('FieldReference render: ' + this.props.fielddef.name + ', state.value : ' + JSON.stringify(this.state.value));
 
-    // function to generate reference search form (for seleced value in edit and view modes, and list values)
-    let referenceForm = (sform, rec) => {
-      //console.log (`referenceForm called ${sform.name} ${JSON.stringify(rec)}`);
-      if (!rec) {
-        return  <span style={{color: "red"}}><IconField value={sform.icon} small={true}/>no data</span>;
-      } else if (rec.error) {
-        return  <span key={rec._id} style={{color: "red"}}><IconField value={sform.icon} small={true}/>{rec.error}</span>;
-      } else {
-        let priimage = <span>no image</span>, pritext = <span>no text</span>;
-        for (let fld of sform.fields) {
-          if (fld.display === 'primary') {
-            //console.log (`referenceForm ${fld.type} ${JSON.stringify(rec[fld.name])}`);
-            if (fld.type === 'icon' || fld.type === 'image')
-              priimage = <Field fielddef={fld}  value={rec[fld.name]} inlist={true} />;
-            else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id )
-              priimage = <IconField value={rec[fld.name]} small={true}/>;
-            else
-              pritext = <Field fielddef={fld} value={rec[fld.name]}/>;
-          }
-        }
-        if (!priimage)
-          priimage = <IconField value={sform.icon} small={true}/>;
 
-        return <span key={rec._id}>{priimage}<span style={{marginLeft: "5px"}}/>{pritext}</span>;
-
-      }
-    }
 
     if (!this.props.edit) {
       if (this.state.value) {
@@ -334,83 +540,130 @@ export class FieldReference extends Component {
           }
 
           if (this.props.fielddef.createnew_form)
-            field = (<span className="slds-pill">
-                        <a href={Router.URLfor(true,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
-                          { referenceForm(sform, self.state.value) }
-                        </a>
-                      </span>);
+            field = (
+              <DefaultLookupForm search_form={sform} record={self.state.value} render={({pritext, priimage}) => (
+                <span className="slds-pill">
+                  {priimage}
+                  <a href={Router.URLfor(true,"RecordPage", this.props.fielddef.createnew_form._id, this.state.value._id)} className="slds-pill__label">
+                    {pritext}
+                  </a>
+                </span>
+              )}/>
+            )
+
           else
-            field = (<span className="slds-pill__label">{ referenceForm(sform, self.state.value) }</span>);
+            field = (
+              <DefaultLookupForm search_form={sform} record={self.state.value} render={({pritext, priimage}) => (
+                
+                <div className="slds-pill__label" style={{"paddingBottom": "0.1rem"}}>
+                {priimage}
+                <span style={{"paddingLeft": "0.5rem"}}>{pritext}</span>
+                </div>
+              )}/>
+            )
         } else
           field = <Alert type="error" message={"Missing Metadata: " + this.props.fielddef.search_form}/>;
 
       } else  {
         field = (<span/>);
       }
-    } else {
+    } else { // its an EDIT
+
       //console.log ('referencefield get search_form : ' + JSON.stringify(this.props.fielddef.search_form));
-      let sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
-          cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id);
+      const sform = this.props.fielddef.search_form && df.getForm (this.props.fielddef.search_form._id),
+          cform = this.props.fielddef.createnew_form && df.getForm (this.props.fielddef.createnew_form._id)
+          
       if (sform) {
-        field = <div className={`slds-lookup ${this.state.lookup.visible ? 'slds-is-open' : ''}`}>
-                <div className={`${this.state.value ? 'slds-pill-container' : 'slds-input-has-icon slds-input-has-icon--right'}`}>
 
-
-                  { this.state.value ?
-                  <span className="slds-pill slds-size--1-of-1">
-                    <a href={cform && Router.URLfor(true, "RecordPage", cform._id, this.state.value._id)} className="slds-pill__label">
-                      { referenceForm(sform, self.state.value) }
-                    </a>
-                    <button onClick={self._handleLookupSelectOption.bind (self, null)} className="slds-button slds-button--icon-bare">
-                      <SvgIcon spriteType="utility" spriteName="close" small={true} classOverride="slds-button__icon icon-utility"/>
-                      <span className="slds-assistive-text">Remove</span>
-                    </button>
+        field = 
+        <div className={`slds-combobox_container ${this.state.value ? "slds-has-selection" : ""}`}  > 
+          <div className={`slds-combobox slds-dropdown-trigger ${this.state.lookup.visible ? "slds-is-open" : ""}`}>
+            
+          { this.state.value ?
+            <DefaultLookupForm search_form={sform} record={self.state.value} render={({pritext, priimage}) => (
+              <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_left-right" role="none">
+                
+                  <span className="slds-icon_container slds-icon-standard-account slds-combobox__input-entity-icon" title="Account">
+                    {priimage}
+                    <span className="slds-assistive-text">Account</span>
                   </span>
-                  :
-                  <span>
-                  <button onClick={this._handleLookupKeypress.bind(this, {target: {value: true}})} className="link-button"><SvgIcon spriteType="utility" spriteName="search" small={true} classOverride="slds-input__icon"/></button>
+                  <input className="slds-input slds-combobox__input slds-combobox__input-value" autoComplete="off"  type="text" placeholder="Select an Option" readOnly defaultValue={pritext}/>
+                
+                <button className="slds-button slds-button_icon slds-input__icon slds-input__icon_right" title="Remove selected option" onClick={self._handleLookupSelectOption.bind (self, null)}>
+                  <svg className="slds-button__icon" aria-hidden="true">
+                    <use xmlnsXlink="http://www.w3.org/1999/xlink" xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#close" />
+                  </svg>
+                  <span className="slds-assistive-text">Remove selected option</span>
+                </button>
+                </div>
+              )}/>
+            :
 
-                  <input className="slds-lookup__search-input slds-input"  type="text" ref="lookupinput" onChange={this._handleLookupKeypress.bind(this)}  disabled={this.state.value ? "disabled" : ""}></input>
-                  </span>
-                  }
+            <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
+              <input className="slds-input slds-combobox__input" id="combobox-id-1" aria-autocomplete="list" aria-controls="listbox-id-1" autoComplete="off"  type="text" placeholder="Search..." onChange={this._handleSearchKeypress.bind(this)} onBlur={this._handleLookupBlur.bind (this)} onFocus={this._handleSearchKeypress.bind (this)} disabled={this.state.value ? "disabled" : ""}/>
+              <span className="slds-icon_container slds-icon-utility-search slds-input__icon slds-input__icon_right">
+                <svg className="slds-icon slds-icon slds-icon_x-small slds-icon-text-default" aria-hidden="true">
+                  <use xmlnsXlink="http://www.w3.org/1999/xlink" xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#search" />
+                </svg>
+              </span>
+            </div>
+          }
+                        
+          { this.state.lookup.open_create ?
+            <Modal>
+              <div className="slds-modal__container w95">
+                <div style={{padding: "0.5em", background: "white"}}>
+                  <FormHeader form={cform}/>
+                </div>
+                <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
+                  <FormMain key={"model-"+this.props.fielddef.name} form={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
+                </div>
+                <div className="slds-modal__footer">
+                </div>
               </div>
-              { this.state.lookup.create ?
-                <Modal>
-                  <div className="slds-modal__container w95">
-                    <div style={{padding: "0.5em", background: "white"}}>
-                      <FormHeader form={cform}/>
-                    </div>
-                    <div className="slds-modal__content" style={{padding: "0", minHeight: "350px"}}>
-                      <FormMain key={"model-"+this.props.fielddef.name} form={cform} value={this.state.lookup.createValue} crud="c" onComplete={this._newLookupRecord.bind(this)}/>
-                    </div>
-                    <div className="slds-modal__footer">
-                    </div>
-                  </div>
-                </Modal>
-              :
-                <div className="slds-lookup__menu" style={{visibility: this.state.lookup.visible ? 'visible' : 'hidden'}}>
-                  <ul className="slds-lookup__list" role="presentation">
+            </Modal>
+          :
+            <div className="slds-dropdown slds-dropdown_length-with-icon-7 slds-dropdown_fluid" style={{visibility: this.state.lookup.visible ? 'visible' : 'hidden'}}>
+              <ul className="slds-listbox slds-listbox_vertical" role="presentation">
 
-                    {this.state.lookup.values.map(function(row, i) { return (
-                    <li key={i} className="slds-lookup__item">
-                        <button onClick={self._handleLookupSelectOption.bind (self, row)} className="link-button">
-                          { referenceForm(sform, row) }
-                        </button>
-                    </li>
-                    );})}
+              { this.state.lookup.offer_create && cform && 
+                <li className="slds-lookup__item ">
+                  <button onClick={this._openCreate.bind(this, this.refs.lookupinput.value)} className="link-button dont-close-on-blur">
+                    <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
+                    Create {cform.name + ' "' + this.refs.lookupinput.value + '"'}
+                  </button>
+                </li>
+              }
 
-                    { this.state.lookup.offercreate && cform &&
-                    <li className="slds-lookup__item ">
-                       <button onClick={this._openCreate.bind(this, this.refs.lookupinput.value)} className="link-button">
-                         <SvgIcon spriteType="utility" spriteName="add" small={true} classOverride="icon-utility"/>
-                         Create {cform.name + ' "' + this.refs.lookupinput.value + '"'}
-                       </button>
-                     </li>
-                    }
-                    </ul>
-                  </div>
-                }
-              </div>;
+              {
+                this.state.lookup.values.map(function(row, i) { return (
+                  <li key={i} className="slds-lookup__item dont-close-on-blur" onClick={self._handleLookupSelectOption.bind (self, row)} >
+          
+                    <DefaultLookupForm search_form={sform} record={row} render={({pritext, priimage}) => (
+                    <div className="slds-media slds-listbox__option slds-listbox__option_entity slds-listbox__option_has-meta" >
+                      <span className="slds-media__figure slds-listbox__option-icon">
+                        <span className="slds-icon_container slds-icon-standard-account">
+                        {priimage}
+                        </span>
+                      </span>
+                      
+                        <span className="slds-media__body">
+                          <span className="slds-listbox__option-text slds-listbox__option-text_entity">{pritext}</span>
+                          <span className="slds-listbox__option-meta slds-listbox__option-meta_entity">{sform.name}</span>
+                        </span>
+                      
+                    </div>
+                    )}/>
+                  </li>
+          
+              );})}
+
+              </ul>
+            </div>
+          }
+          </div>
+        </div>
+
       } else {
         field = <Alert type="error" message={"no search_form found in app " + (this.props.fielddef.search_form && this.props.fielddef.search_form._id)}/>;
       }
@@ -419,7 +672,7 @@ export class FieldReference extends Component {
   }
 
 }
-
+*/
 export class FieldDate extends Component {
   constructor(props) {
     super(props);
@@ -667,17 +920,7 @@ export class FieldDate extends Component {
   }
 }
 
-export const Field = ({fielddef, value, edit, inlist, onChange}) => {
-
-  /**************************/
-  /* inline Data  Functions */
-  /**************************/
-  let _inlineDataChange = function(val) {
-    console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
-    if (onChange)
-      onChange ({[fielddef.name]: val.data});
-  };
-  /****************************/
+export function Field ({fielddef, value, edit, inlist, onChange}) {
 
   let _handleValueChange = function(event) {
     //console.log (`dform_fields.jsx - Field - _handleValueChange: ${fielddef.name}: ${event.target.value}`)
@@ -746,43 +989,76 @@ export const Field = ({fielddef, value, edit, inlist, onChange}) => {
       default:
         field = <span>Unknown fieldtype {fielddef.type}</span>;
         break;
-  } else switch (fielddef.type) {
+  } else {
+    field = <InputStateful fielddef={fielddef} value={value} onChange={_handleValueChange} />
+  }
+  
+  return field;
+}
+
+// required to prevent rerendering of input field (so cursor doesnt jump while editing)
+function InputStateful ({fielddef, value, onChange}) {
+  if (!value) value = ""
+  const [ inputvalue, setInputValue ] = useState(value)
+
+  //console.log (`InputStateful ${fielddef.name}: prop:${value} state:${inputvalue}`)
+  
+  function handleValueChange(e) {
+    const newval = e.target.value
+    setInputValue(newval) // will rerender with new state
+    onChange({target: {value: newval}}) // will rerender with new prop
+  }
+
+  function inlineDataChange  (val) {
+    //console.log ("Field: _inlineDataChange : got update from List : " + JSON.stringify(val));
+    setInputValue(val.data)
+    onChange ({target: {value: val.data}})
+  }
+
+  // if prop value changes!
+  useEffect(() => {
+    //console.log (`InputStateful useEffect ${fielddef.name}: prop:${value} state:${inputvalue}`)
+    if (inputvalue !== value)
+      setInputValue(value)
+  }, [value])
+
+  let field
+  switch (fielddef.type) {
     case 'text':
     case 'email':
     case 'secret':
-      field =  <input type={fielddef.type === "secret"? "password" : "text"} className="slds-input" placeholder={fielddef.placeholder} value={value || ""} onChange={_handleValueChange}/>;
+      field =  <input type={fielddef.type === "secret"? "password" : "text"} className="slds-input" placeholder={fielddef.placeholder} value={inputvalue} onChange={handleValueChange}/>
       break;
     case 'textarea':
     case 'formula':
-      field = <textarea className="slds-input" rows="3" placeholder={fielddef.placeholder} value={value} onChange={_handleValueChange}></textarea>;
-        break;
-    case 'boolean':
-      field = (<input type="checkbox" checked={value} onChange={_handleValueChange} />);
-      break;
     case 'jsonarea':
-        field = <textarea className="slds-input" rows="3" placeholder={fielddef.placeholder} value={value} onChange={_handleValueChange}></textarea>;
-        break;
+      field = <textarea className="slds-input" rows="3" placeholder={fielddef.placeholder} value={value} onChange={handleValueChange}></textarea>;
+      break;
+    case 'boolean':
+      field = (<input type="checkbox" checked={value} onChange={handleValueChange} />);
+      break;
     case 'dropdown':
-      field = <select className="slds-input" value={value} onChange={_handleValueChange}>
+      field = <select className="slds-input" value={value} onChange={handleValueChange}>
                     <option value="">-- select --</option>
                     {fielddef.dropdown_options.map (function(opt, i) { return (
                     <option key={i} value={opt.key}>{opt.name}</option>
                     );})}
                   </select>;
-      break;
+      break
     case 'childform':
       field = <div></div>;
-      break;
+      break
     case 'dropdown_options':
-      let cform = fielddef.child_form && df.getForm(fielddef.child_form._id);
+      let cform = fielddef.child_form && DynamicForm.instance.getForm(fielddef.child_form._id);
       if (cform)
-        field = (<ListMain form={cform} inline={true} value={{status: "ready", records: value || [] }}  onDataChange={_inlineDataChange}/>);
+        field = (<ListMain form={cform} inline={true} value={{status: "ready", records: value || [] }}  onDataChange={inlineDataChange}/>);
       else
         field = (<div>{fielddef.child_form} not part of applicatiohn</div>);
-      break;
+      break
     default:
       field = <div>Unknown fieldtype {fielddef.type}</div>;
-      break;
-  };
-  return field;
+      break
+  }
+
+  return  field
 }

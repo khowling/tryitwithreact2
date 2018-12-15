@@ -39,9 +39,24 @@ const list_things =  (provider, url) => {
 
 exports.find = (form, query, context) => {
     return new Promise ((acc,rej) => {
-        
-        return list_things (context.user.provider.find(p => p.type === "chatter"), (query && query._id) ? form.url + `/${query._id}/describe` : form.url).then ((parsedData) => {
-            acc (form.source && parsedData.hasOwnProperty(form.source) ? parsedData[form.source] : parsedData)
+        let q_url,
+            return_jsonpath = form.source
+
+        if (return_jsonpath === "sobjects") {
+            q_url = (query && query._id) ? form.url + `/sobjects/${query._id}/describe` : form.url + "/sobjects"
+        } else {
+            const flds = "Id," + form.fields.filter(f => query.display === "all" || (query.display === "list" && f.display === "list") || f.display === "primary").map(f => f.name).join(",")
+            if (query && query._id) {
+                q_url = form.url + `/sobjects/${form.name}/${query._id}?fields=` + encodeURIComponent(flds)
+                return_jsonpath = null
+            } else {
+                q_url = form.url + "/query/?q=" + encodeURIComponent(`SELECT ${flds} FROM ${form.name}`)
+            }
+        }
+
+
+        return list_things (context.user.provider.find(p => p.type === "chatter"), q_url).then ((parsedData) => {
+            acc (return_jsonpath && parsedData.hasOwnProperty(return_jsonpath) ? parsedData[return_jsonpath] : parsedData)
         }, rej1 => rej(rej1))
     })
 }

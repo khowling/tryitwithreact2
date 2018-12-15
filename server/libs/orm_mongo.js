@@ -239,7 +239,7 @@ module.exports = function(options) {
                 if (fval) {
                   if (harvest) { //--------------------- harvest mode
                     try {
-                      console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
+                      //console.log (`find() processlookupids (harvest) [find: ${lookup.reference_field_name}] [val: ${JSON.stringify(fval)}]`);
                         if (fval._id) {
                           // NEED THIS, as can just compaire === ObjectId, always different, Set doesnt work either!
                           if (lookupkeys[lookup.search_form_id].length === 0 || lookupkeys[lookup.search_form_id].findIndex(k => k.toString() === fval._id.toString()) === -1) {
@@ -271,11 +271,11 @@ module.exports = function(options) {
             if (harvest) {
               fieldsandlookups.dynamic_lookups = [];
               for (let d of fieldsandlookups.dynamics) {
-                console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamic [field: ${d.parent_field_name}.${d.reference_field_name}] [${d.dynamic_form_ex}]`);
-                console.log (`find() processlookupids ${JSON.stringify(doc, null, 2)}`);
+                //console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamic [field: ${d.parent_field_name}.${d.reference_field_name}] [${d.dynamic_form_ex}]`);
+                //console.log (`find() processlookupids ${JSON.stringify(doc, null, 2)}`);
                 let dynamic_fields = null
                 if (d.parent_field_name) {
-                  console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamic on childform`)
+                  //console.log (`orm_mongo.js - find - processlookupids: (harvest) got dynamic on childform`)
                   // TODO - process all records in array!
                   if (Array.isArray(doc[d.parent_field_name])) {
                     try {
@@ -506,10 +506,10 @@ module.exports = function(options) {
                     return reject(e);
                   });
                 }, (errVal) => {
-                  console.log("find() processlookupids error " + errVal);
+                  console.error("find() processlookupids error " + errVal);
                   return reject(errVal);
                 }).catch((e) => {
-                  console.log ("find() catch processlookupids err : " + e);
+                  console.error ("find() catch processlookupids err : " + e);
                   return reject(e);
                 });
               }

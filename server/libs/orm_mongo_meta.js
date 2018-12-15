@@ -151,9 +151,9 @@ const UIComponents = [
         ]
       },
       {
-        _id: "AdminTileList",
-        name: "Admin TileList",
-        desc: "Admin Tiles",
+        _id: "TileList",
+        name: "TileList",
+        desc: "Tiles",
         props: [
           {
               name: "formids",
@@ -1045,7 +1045,7 @@ const AdminApp = {
         landingpage: [
           {
             position: "head",
-            component: {_id: "AdminTileList"},
+            component: {_id: "TileList"},
             title: "Admin Tile List",
             props: {
               formids: [Forms.formMetadata, Forms.Users, Forms.App, Forms.ImportMeta]

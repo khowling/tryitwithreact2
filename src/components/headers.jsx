@@ -1,6 +1,70 @@
-import React, {Component} from 'react';
+import React, {Component, useState} from 'react';
 import {SvgIcon, IconField } from './utils.jsx';
 import Router from './router.jsx';
+import {AuthState }  from './auth.jsx'
+
+export function PageHeader ({currentApp, user, logoutFn}) {
+
+  // useState returns a pair: the current state value and a function that lets you update it
+  // declare a state variable
+  const [searchtxt, setSearchTxt] = useState()
+
+  function handleSearchChange(e) {
+    setSearchTxt(e.target.value)
+  }
+
+  return (
+    <header className="slds-global-header_container">
+        
+      <div className="slds-global-header slds-grid slds-grid--align-spread">
+        <div className="slds-global-header__item">
+          <div className="slds-global-header__logo">
+
+            <div className="slds-context-bar__primary slds-context-bar__item--divider-right">
+              <div className="slds-context-bar__item slds-context-bar__dropdown-trigger slds-dropdown-trigger slds-dropdown-trigger--click slds-no-hover">
+                <div className="slds-context-bar__icon-action">
+                  <a href={Router.URLfor(true)} className="slds-icon-waffle_container slds-context-bar__button">
+                    <div className="slds-icon-waffle">
+                      <div className="slds-r1"></div>
+                      <div className="slds-r2"></div>
+                      <div className="slds-r3"></div>
+                      <div className="slds-r4"></div>
+                      <div className="slds-r5"></div>
+                      <div className="slds-r6"></div>
+                      <div className="slds-r7"></div>
+                      <div className="slds-r8"></div>
+                      <div className="slds-r9"></div>
+                    </div>
+                    <span className="slds-assistive-text">Open App Launcher</span>
+                  </a>
+                </div>
+                <span className="slds-context-bar__label-action slds-context-bar__app-name">
+                  <span className="slds-truncate" title="{ props.appName || 'App Name' }">{currentApp && currentApp.name }</span>
+                </span>
+              </div>
+            </div>
+        </div>
+      </div>
+      <div className="slds-global-header__item slds-global-header__item--search">
+        <div className="slds-form-element slds-lookup slds-is-o pen">
+          <label className="slds-assistive-text" >Search</label>
+          <div className="slds-form-element__control slds-input-has-icon slds-input-has-icon--left">
+            <svg  className="slds-input__icon">
+              <use xlinkHref="/assets/icons/utility-sprite/svg/symbols.svg#search"></use>
+            </svg>
+            <input id="global-search-01" className="slds-input slds-lookup__search-input" type="search" placeholder="Search" value={searchtxt} onChange={handleSearchChange} />
+          </div>
+        </div>
+      </div>
+      <ul className="slds-global-header__item slds-grid slds-grid--vertical-align-center">
+
+        <AuthState user={user} currentApp={currentApp} onLogout={logoutFn}/>
+  }
+      </ul>
+      </div>
+    </header>
+  ) 
+}
 
 export const SectionHeader = ({title, buttons}) => {
   return (

@@ -43,7 +43,7 @@ import uploadFile from '../services/azureBlob.js';
 
       // --------------------  CALCULATE If the field has a VALID TYPE
       if (edit) {
-        console.log (`field ${fld.name}, typecheckFn ${val[fld.name]} || ${returnControl.new_deflts[fld.name]}`);
+        //console.log (`field ${fld.name}, typecheckFn ${val[fld.name]} || ${returnControl.new_deflts[fld.name]}`);
         fctrl.invalid = typecheckFn (form, fld.name, val[fld.name] || returnControl.new_deflts[fld.name], (fid) => df.getForm(fid)).error
       }
       
@@ -79,8 +79,26 @@ import uploadFile from '../services/azureBlob.js';
 
 
 /*****************************************************************************
-  ** Called from Form Route (top), or within List (embedded),
-  ** Responsibilities: Render form fields, save record, delete record
+  * Called from Form Route (top), or within List (embedded)
+  * Pass in the 'form' and the 'value' record (the value needs to be pre-fetched)
+  * Functions: Render form fields, validate, save record, delete record
+  *  
+  * props:
+  *    value: {
+  *     record : <record to edit>, 
+  *     status: "wait" | "ready"
+  *    }
+  *  crud: 
+  *    c - create new (pass in any defaults via props.value.record)
+  *    u - update
+  *  parent: (this is a childform)
+  *    form_id: 
+  *    record_id: 
+  *    field_id
+  *  parentrec: (the full partent record, used for expression evaluation)
+  *  onComplete: used by lookup and childform (if no onComplete, assume top)
+  *  onFinished: 
+  *  inModal: 
   ***************************************************************************/
 export class FormMain extends Component {
   constructor(props) {
@@ -107,7 +125,8 @@ export class FormMain extends Component {
 
   componentWillMount() {
     //console.log ("dform - componentWillMount");
-    if (this.props.value && this.props.value.status === "ready") {
+    // If its creating a new record, or the value record is ready
+    if (this.props.crud === "c" || (this.props.value && this.props.value.status === "ready")) {
       _formControlState (this.state.edit, this.props.form, this.props.value? this.props.value.record : {}, this.props.parentrec).then(succval => {
         this.setState ({
           changedata: succval.new_deflts,
@@ -235,7 +254,7 @@ export class FormMain extends Component {
     console.log (`FormMain - render ${this.props.value && this.props.value.ready}`)
     let self = this,
         edit = this.state.edit,
-        {state, record} = this.props.value || {status: "ready", record: {}},
+        {record} = this.props.value || {status: "ready", record: {}},
         formcontrol = this.state.formcontrol,
         buttons =[
           {

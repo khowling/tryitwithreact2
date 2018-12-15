@@ -145,9 +145,9 @@ module.exports = function(options) {
     return res.status(400).send({error: strerr})
   }
 
-   var validate_store_json_result = (form, store_data, single, context) => {
+   var validate_store_json_result = (form, store_data, query, context) => {
     //console.log (`validate_store_json_result: [${form.name}]: ${JSON.stringify(store_data)}`)
-    let entries = single ? [store_data] : store_data
+    let entries = (query && query._id) ? [store_data] : store_data
 
     let jsonpath = (path, json) => {
        let r = json[path[0]]
@@ -158,10 +158,10 @@ module.exports = function(options) {
       let r = {_id: row[form.externalid]}
       if (row._saslocator) r._saslocator = row._saslocator
 
-      for (let fld of form.fields) {
+      for (let fld of form.fields.filter(f => query.display === "all" || (query.display === "list" && f.display === "list") || f.display === "primary")) {
         if (fld.type === 'childform' && row[fld.name]) {
           let childform = fld.child_form && context.appMeta.find((d) => String(d._id) === String (fld.child_form._id));
-          r[fld.name] = validate_store_json_result (childform, row[fld.name], false, context)
+          r[fld.name] = validate_store_json_result (childform, row[fld.name], {display: "all"} , context)
         } else {
           if (!fld.source) {
             r[fld.name] = row[fld.name] == null ? null : row[fld.name].toString()
@@ -172,7 +172,7 @@ module.exports = function(options) {
       }
       return r
     })
-    return single ? res[0] : res
+    return (query && query._id) ? res[0] : res
   }
 
   var returnJsonError = (res, strerr) => {
@@ -207,7 +207,7 @@ module.exports = function(options) {
     } else if (formdef.store === "ams_api") {
 
       orm_ams.find (formdef, query, req.session.context).then((j) => {
-        res.json(validate_store_json_result (formdef.form, j, (query && query._id), req.session.context)); 
+        res.json(validate_store_json_result (formdef.form, j, query, req.session.context)); 
       }, (e) => {
         return returnJsonError(res, e)
       }).catch((e)=> {
@@ -216,7 +216,7 @@ module.exports = function(options) {
     } else if (formdef.store === "sfdc") {
 
       orm_sfdc.find (formdef.form, query, req.session.context).then((j) => {
-        res.json(validate_store_json_result (formdef.form, j, (query && query._id), req.session.context)); 
+        res.json(validate_store_json_result (formdef.form, j, query, req.session.context)); 
       }, (e) => {
         return returnJsonError(res, e)
       }).catch((e)=> {
@@ -233,7 +233,7 @@ module.exports = function(options) {
         userdoc = req.body,
         formdef = idparams2meta (formparam, req.query.parent, req.session.context)
 
-    if (!req.user)
+    if (false && !req.user)
       return returnJsonError(res, `Permission Denied`);
     else {
       console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);
@@ -385,17 +385,20 @@ module.exports = function(options) {
       };
       res.json(req.session.context);
     } else {
-      console.log ("/formdata: user logged on and authorised for the apps : " + appid);
+      //console.log ("/formdata: user logged on and authorised for the apps : " + appid);
+      // Find the app, 
       orm.find(idparams2meta(meta.Forms.App), { _id: appid}).then((apprec) => {
-          let systemMeta = [], userMetaids = new Set();
+
+          // Get all the forms in the app, and collect the Ids of the forms that are not satisfied in the system Forms
+          let systemMeta = [], appperms_ids = new Set();
           if (apprec && apprec.appperms) for (let perm of apprec.appperms) {
             console.log (`/formdata: adding form app [${perm.name}]: ${JSON.stringify(perm.form._id)}`);
             if (perm.form) {
               let sysmeta = systemMetabyId[String(perm.form._id)];
-              if (sysmeta === undefined) {
-                userMetaids.add(perm.form._id); //.add[perm.form];
+              if (sysmeta === undefined) { // not a system form
+                appperms_ids.add(perm.form._id)
               } else {
-                systemMeta.push(sysmeta);
+                systemMeta.push(sysmeta)
               }
             }
             //perm.crud
@@ -409,11 +412,21 @@ module.exports = function(options) {
           systemMeta.push(systemMetabyId[String(meta.Forms.ComponentMetadata)]); // needed for the router props
           systemMeta.push(systemMetabyId[String(meta.Forms.formMetadata)]); // required for the cloneSObject jexl Transform
 
-          console.log (`/formdata: getFormMeta ${userMetaids.size}`);
+          //console.log (`/formdata: getFormMeta ${appperms_ids.size}`);
 
-          if (userMetaids.size >0) {
-            orm.find(idparams2meta(meta.Forms.formMetadata), {_id: Array.from(userMetaids)}).then(userMeta => {
-              let allMeta = systemMeta.concat (userMeta);
+          // Find all the user-defined Forms that is in the app
+          if (appperms_ids.size >0) {
+            let appperms_full = []
+            orm.find(idparams2meta(meta.Forms.formMetadata), {_id: Array.from(appperms_ids)}).then(apps => {
+              for (let appform of appperms_ids) {
+                let idx = apps.findIndex(a => a._id.toString() === appform.toString())
+                if (idx >= 0) {
+                  appperms_full.push(apps[idx])
+                } else {
+                  return returnJsonError(res, `Form Configured in the app has been deleted, ref: ${appform}`)
+                }
+              }
+              let allMeta = systemMeta.concat (apps);
               req.session.context = {user: req.user, app: apprec,  appMeta: allMeta};
               res.json(req.session.context);
             });

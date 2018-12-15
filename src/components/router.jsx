@@ -1,10 +1,12 @@
 import React, {Component} from 'react';
 import DynamicForm from '../services/dynamicForm.js';
-import {Alert } from './utils.jsx';
-import t from 'transducers.js';
-const { into,  map } = t;
+import {Alert} from './utils.jsx';
+import {TileList} from './tiles.jsx'
+import {ListMain, ListPage, RecordPage}  from './dform.jsx'
+import {TimeLine} from './timeline.jsx'
+import {Login, Register }  from './auth.jsx'
 
-const DEFAULT_LANDING = 'AdminTileList';
+const DEFAULT_LANDING = 'TileList';
 
 // router.jsx - root format  
 // http://host/<# admin / ListPage >?props=eyJmb3JtIjp7Il9pZCI6IjMwMzAzMDMwMzAzMDMwMzAzMDYxMzAzMCJ9fQ%3D%3D
@@ -20,6 +22,12 @@ export default class Router extends Component {
     super(props)
     //console.log ('router.jsx - constructor')
     this.bind__chng_route_fn  = this._chng_route_fn.bind(this);
+    this.factories = {}
+    for (let mods of [ListMain, TileList, ListPage, RecordPage, TimeLine, Register, Login, Register]) {
+      if (typeof mods === "function" ) {
+        this.factories[mods.name] = React.createFactory(mods);
+      }
+    }
   }
 
   static set backUrl(val) {
@@ -92,14 +100,11 @@ export default class Router extends Component {
       }
       // params to props
       if (urlparms) {
-        let objparam = into({},
-            map(p => p.split("=")),
-           urlparms.split("&"));
-        for (let p in objparam) {
-          if (p === "props") {
-            retval.props = JSON.parse(atob(decodeURIComponent(objparam[p])));
+        for (let p of urlparms.split("&").map(p => p.split("="))) {
+          if (p[0] === "props") {
+            retval.props = JSON.parse(atob(decodeURIComponent(p[1])));
           } else {
-            retval.urlparms[p] = objparam[p];
+            retval[p[0]] = p[1]
           }
         }
       }
@@ -202,8 +207,9 @@ export default class Router extends Component {
     //console.log ('Router: render');
     if (df.app && !this.state.newroute.component) { // app landingpage
       let comps = {};
-      if (df.app.landingpage) for (let pagecomp of df.app.landingpage) {
-        let cf = this.props.componentFactories[pagecomp.component._id];
+      if (df.app.landingpage && df.app.landingpage.length >0) {
+        for (let pagecomp of df.app.landingpage) {
+        let cf = this.factories[pagecomp.component._id];
         //console.log (`Router: render:  component "${pagecomp.component._id}", for position "${pagecomp.position}"`);
         if (!comps[pagecomp.position]) comps[pagecomp.position] = [];
         if (cf) {
@@ -212,6 +218,12 @@ export default class Router extends Component {
         } else
           comps[pagecomp.position].push (<Alert message={`Cannot find component ${pagecomp.component._id}`}/>);
       }
+    } else {
+      comps["head"] = (this.factories[DEFAULT_LANDING])(Object.assign({key: DEFAULT_LANDING}, {formids: df.app.appperms.filter(f => { 
+        const ff = df.getForm(f.form._id)
+        return (ff.store !== "input" && ff.store !== "fromparent")
+      }).map(f => f.form._id)}))
+    }
     //  console.log (`Router: rendering components : ${JSON.stringify(comps)}`);
       if (Object.keys(comps).length >0) {
         return template3(comps);
@@ -219,7 +231,7 @@ export default class Router extends Component {
         return (<Alert message="No landing page defined for app" alert={true}/>);
     } else {
       // component direct
-      let cf = this.props.componentFactories[this.state.newroute.component];
+      let cf = this.factories[this.state.newroute.component];
       if (cf) {
         //console.log (`Router: render: component ${this.state.newroute.component} with props ${JSON.stringify(this.state.newroute.props)}`);
         return cf(Object.assign({key: JSON.stringify(this.state.newroute.props)}, this.state.newroute.props));

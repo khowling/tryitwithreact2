@@ -5,6 +5,14 @@
 
 @import '~@salesforce-ux/design-system/scss/index.scss';
 
+/* Reference lookup field FIX, when in edit mode and a value has been selected */
+.slds-input[readonly] {
+    padding-left: 0.75rem;
+    border-color: #dddbda;
+    background-color: white;
+    font-size: inherit;
+    font-weight: 400;
+}
 
  /*  layout */
  .viewport {

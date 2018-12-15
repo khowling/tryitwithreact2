@@ -1,46 +1,28 @@
-
-import React, {Component} from 'react';
+import React from 'react';
 import { IconField } from './utils.jsx';
 import Router from './router.jsx';
 import DynamicForm from '../services/dynamicForm.js';
-import t from 'transducers.js';
-const { seq, compose, map, filter } = t;
 
-
-
-export class Tile extends Component {
-
-  // This component doesn't hold any state - it simply transforms
-  // whatever was passed as attributes into HTML that represents a picture.
-  setFilter(id){
-      // When the component is clicked, trigger the onClick handler that
-      // was passed as an attribute when it was constructed:
-      this.props.onTileClick(id);
-  }
-
-  render(){
-    let meta = this.props.meta
-    return (
+//export class Tile extends Component {
+const Tile = ({meta}) => { return (
       <li className="slds-p-horizontal--small slds-size--xx-small">
         <a href={Router.URLfor(true, "ListPage", meta._id)} className="slds-app-launcher__tile slds-text-link--reset slds-app-launcher__tile--small">
           <div className="slds-app-launcher__tile-figure slds-app-launcher__tile-figure--small">
+            { meta.icon ?
             <IconField value={meta.icon} large={true}/>
+            :
+            <IconField value={{_id:"std30"}} large={true}/>
+            }
           </div>
           <div className="slds-app-launcher__tile-body slds-app-launcher__tile-body--small">
             <p className="slds-truncate slds-text-link" title={meta.name}>{meta.name}</p>
           </div>
         </a>
       </li>
-    );
-  }
-}
+)}
 
-export class AdminTileList extends Component {
-  render () {
-    let df = DynamicForm.instance,
-        //metaview = df.getForm (),
-        fids = this.props.formids || seq(df.appMeta, compose(filter (x => x.store !== "metadata"), map(x => x._id)));
-
+export const TileList = ({formids}) => {
+    let df = DynamicForm.instance
     //console.log ('TileList render : ' + metaview.length);
     return (
       <div className="slds-section slds-is-open" style={{padding: "0.5em"}}>
@@ -56,7 +38,7 @@ export class AdminTileList extends Component {
         <div className="slds-section__content">
           <ul className="slds-grid slds-grid--pull-padded slds-wrap">
 
-            {fids.map(function(fid, i) {
+            {formids.map(function(fid, i) {
                 return (
                   <Tile key={i+':'+fid} meta={df.getForm(fid)}/>
             );})}
@@ -65,5 +47,4 @@ export class AdminTileList extends Component {
         </div>
       </div>
     )
-  }
 }

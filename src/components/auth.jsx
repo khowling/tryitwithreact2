@@ -74,8 +74,11 @@ export class Login extends Component {
                   <br/>
                   <button className="btn btn-block btn-social btn-google-plus btn-flat"><i className="fa fa-google-plus"></i> Sign in using Google+</button>
                   <br/>
-                  <a className="slds-button slds-button_inverse" href={`${process.env.REACT_APP_SERVER_URL}/auth/salesforce?state=${encodeURIComponent(window.location.origin)}`} id="facebook_login_btn">
+                  <a className="slds-button slds-button_inverse" href={`${process.env.REACT_APP_SERVER_URL}/auth/forcedotcom?state=${encodeURIComponent(window.location.origin)}`} id="facebook_login_btn">
                       <span>login or register with Salesforce</span>
+                  </a>
+                  <a className="slds-button slds-button_inverse" href={`${process.env.REACT_APP_SERVER_URL}/auth/oauth2?state=${encodeURIComponent(window.location.origin)}`} id="facebook_login_btn">
+                      <span>login or register with Azure AD</span>
                   </a>
               </div>
 

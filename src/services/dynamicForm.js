@@ -22,17 +22,34 @@ jexl.addTransform('toApiName', function(str) {
 
 jexl.addTransform('cloneSObject', function(cloneopts, sobjectdef) {
   let df = DynamicForm.instance,
+      SFDCKEY = "Id",
       newform = {
-        name: cloneopts.name,
+        name: sobjectdef.name,
         store: "sfdc",
+        externalid: SFDCKEY,
+        source: "records",
         desc: `Cloned from Salesforce ${sobjectdef.name} definition`,
-        url: sobjectdef.sobject_url,
-        fields: sobjectdef.fields.map((sf) => { return {
-          name: sf.name,
-          title: sf.label,
-          type: "text"
-        }})}
-    console.log (`cloneSObject ${JSON.stringify(df.getFormByName("Form Metadata"))}`)
+        url: "/services/data/v37.0", //sobjectdef.sobject_url,
+        fields: sobjectdef.fields.filter(sf => sf.name !== SFDCKEY).map((sf) => { 
+
+          let lookupform = null
+          if (sf.type === "reference") {
+            lookupform = df.getFormByName(sf.referenceTo)
+          }
+          let sfdef = {
+            name: sf.name,
+            title: sf.label,
+            type: sf.type === "datetime"? "datetime": lookupform? "reference": "text",
+            search_form: lookupform && {_id: lookupform._id},
+            display: (sf.name === "name" || sf.name === "type"  || sf.name === "stage"   || sf.name === "LastName") ? "primary" : ""
+          }
+        
+          return sfdef
+      
+      }
+        
+        )}
+    console.log (`cloneSObject ${JSON.stringify(newform)}`)
     return df.save (df.getFormByName("Form Metadata")._id, newform)
 });
 
@@ -148,16 +165,46 @@ export default class DynamicForm {
     else
       return this._appMeta.find(f => f.name === fid);
   }
-  // get 1 or many by ID
-  get(viewid, ids, display = 'all') {
-    if (!Array.isArray(ids)) ids = [ids];
-    return this._callServer(`${this.ROUTES.dform}db/${viewid}?d=${display}${ids ? ("&_id=" + ids.join(",")) : ''}`);
+
+  getPrimaryFields (formid) {
+    if (!formid) {
+      throw "no search form specified"
+    }
+
+    const searchview = this.getForm(formid)
+    if (!searchview) {
+      throw `Form not found in current Application, ref: ${formid}`
+    }
+
+    const pri_fieldidx = searchview.fields.findIndex(f => f.display === 'primary' && f.type === 'text')
+    const pri_fieldidx_pic = searchview.fields.findIndex(f => f.display === 'primary' && ( f.type === 'icon' || f.type === 'image'))
+    if (pri_fieldidx < 0) throw `Form doesnt contain Primary field, ref: ${formid}`
+    return {primary_text: searchview.fields[pri_fieldidx].name, primary_image: pri_fieldidx_pic >= 0 && searchview.fields[pri_fieldidx_pic].name}
   }
-  // search by name (primary)
-  search(viewid, str, display = 'primary') {
-    return new Promise ((resolve, reject) => {
-      this._callServer(`${this.ROUTES.dform}db/${viewid}?d=${display}${(str ? ("&p=" + str) : '')}`).then(succVal => {
-        if (viewid === "303030303030303030313030") //'formmeta'
+  // get 1 or many by ID
+  get(formid, ids, display = 'all') {
+    if (!Array.isArray(ids)) ids = [ids];
+    return this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${ids ? ("&_id=" + ids.join(",")) : ''}`);
+  }
+  
+  // search by primary field (return primary fields by default)
+  search(formid, str, display = 'primary') {
+    if (!formid) {
+      throw "no search view specified"
+    }
+    
+    const searchview = this.getForm(formid)
+    if (!searchview) {
+      return Promise.reject({error: `Search form not found in current Application, ref: ${formid}`})
+    }
+
+    if (searchview.store === "metadata") {
+      const {primary_text, primary_image} = this.getPrimaryFields (formid)
+      return Promise.resolve (searchview._data.filter(r => str === null || r[primary_text].startsWith(str)).map(r => { return {_id: r._id, [primary_text]: r[primary_text], [primary_image]: r[primary_image]}}))
+
+    } else return new Promise ((resolve, reject) => {
+      this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${(str ? ("&p=" + str) : '')}`).then(succVal => {
+        if (searchview.name === "Form Metadata")
           resolve (succVal.concat( this.appMeta));
         else
           resolve (succVal);
@@ -165,15 +212,15 @@ export default class DynamicForm {
     });
   }
   // full query
-  query(viewid, q, display = 'list') {
-    return this._callServer(`${this.ROUTES.dform}db/${viewid}?d=${display}${(q ? ("&q=" + encodeURIComponent(JSON.stringify(q))) : '')}`);
+  query(formid, q, display = 'list') {
+    return this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${(q ? ("&q=" + encodeURIComponent(JSON.stringify(q))) : '')}`);
   }
-  save(viewid, body, parent) {
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + (parent ? "?parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'POST', body);
+  save(formid, body, parent) {
+    return this._callServer(this.ROUTES.dform + 'db/' + formid + (parent ? "?parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'POST', body);
   }
-  delete(viewid, ids, parent) {
+  delete(formid, ids, parent) {
     if (!Array.isArray(ids)) ids = [ids];
-    return this._callServer(this.ROUTES.dform + 'db/' + viewid + "?_id=" + ids.join(",") + (parent ? "&parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'DELETE');
+    return this._callServer(this.ROUTES.dform + 'db/' + formid + "?_id=" + ids.join(",") + (parent ? "&parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'DELETE');
   }
   listFiles() {
     return this._callServer(this.ROUTES.dform + 'filelist');

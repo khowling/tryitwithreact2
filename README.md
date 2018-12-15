@@ -1,3 +1,12 @@
+### React
+
+STATELESS COMPONENT declared as a function that has no state and returns the same markup given the same props. must not retain internal state!
+
+PURE COMPONENT is one of the most significant ways to optimize React applications. The usage of Pure Component gives a considerable increase in performance because it reduces the number of render operation in the application.
+
+PureComponent changes the life-cycle method shouldComponentUpdate and adds some logic to automatically check whether a re-render is required for the component.  This allows a PureComponent to call the method render only if it detects changes in state or props
+
+
 
 
 ### simple field Types
@@ -76,7 +85,7 @@ In most cases, we recommend using controlled components to implement forms.  To 
 
 -- update field
 
-Field (functional components), render the {value} from their props, and with onChange={onChange} prop called when a field is updated!
+dform_fields.jsx > <Field> Functional Component, render the {value} from their props, and with onChange={onChange} prop called when a field is updated!
 
 
 Field props.OnChange -> FormMain (_fieldChange)
