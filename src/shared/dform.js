@@ -47,9 +47,17 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
         return {validated_value: new Date(fdate)}
     } else {
       if (fldmeta.required) return {error: "required field missing : " + propname};
-      return {validated_value:  null};
+      return {validated_value:  null}
     }
   } else if (fldmeta.type === "image") {
+    if (fval) {
+      if (typeof fval !== 'object' || !(fval.container_url && typeof fval.container_url === "string" && fval.filename && typeof fval.filename === "string")) {
+        return {error: "data contains invalid image format : " + propname}
+      } else {
+        return {validated_value:  fval}
+      }
+    } else return {validated_value:  null}
+    /*
     if (fval) try {
       if (mongoObjectId && !fval.startsWith("http")) {
         return {validated_value: new mongoObjectId(fval)};
@@ -59,6 +67,7 @@ export function typecheckFn (formmeta, propname, fval, getFormFn, mongoObjectId)
       if (fldmeta.required) return {error: "required field missing : " + propname};
       return {validated_value:  null};
     }
+    */
   } else  if (fldmeta.type === "reference") {
     if (fval) {
       if (!fval._id) return {error: "data contains reference field with recognised _id: " + propname};

@@ -1,13 +1,12 @@
 
-import React, {Component} from 'react';
-import jexl from 'jexl';
-import Router from './router.jsx';
-import {Field} from './dform_fields.jsx';
-import {Button, SectionHeader, RecordHeader, FormHeader} from './headers.jsx';
-import {Modal, SvgIcon, Alert, UpdatedBy } from './utils.jsx';
-import DynamicForm from '../services/dynamicForm.js';
-import {typecheckFn} from '../shared/dform.js';
-import uploadFile from '../services/azureBlob.js';
+import React, {Component} from 'react'
+import jexl from 'jexl'
+import Router from './router.jsx'
+import {Field} from './dform_fields.jsx'
+import {Button, SectionHeader, RecordHeader, FormHeader} from './headers.jsx'
+import {Modal, SvgIcon, Alert, UpdatedBy } from './utils.jsx'
+import DynamicForm from '../services/dynamicForm.js'
+import {typecheckFn} from '../shared/dform.js'
 
   // form control - visibility and validity
   // TODO : Needs to be MUCH better, not calling eval many times!
@@ -178,6 +177,7 @@ export class FormMain extends Component {
 
       df.save (this.props.form._id, body, this.props.parent).then(saveval => {
         //console.log (`FormMain _save, response from server: ${JSON.stringify(saveval)}`);
+        /*
         if (this.props.form.name === 'AMS Asset Files' && body.file) {
           
           //console.log(`FormMain _save [${this.props.form.name}] _fileuploadhtml5: ${body.file.name}`);
@@ -193,8 +193,9 @@ export class FormMain extends Component {
             })
           })
         } else {
+        */
           resolve(saveval);
-        }
+        /*}*/
         //return succfn (succval);
       }, errval => {
           self.setState({formcontrol: Object.assign (this.state.formcontrol, {serverError: JSON.stringify(errval), change: true })});
@@ -725,7 +726,7 @@ export class ListMain extends Component {
                           <td className="slds-row-select">
 
                             { self.props.selected ?
-                              <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row._id)}>select </button>
+                              <button className="slds-button slds-button--brand" onClick={self._handleSelect.bind(self,row)}>select </button>
                             :  edit ?
                               <div className="slds-button-group">
                                 <button className="slds-button slds-button--brand" onClick={self._inLineSave.bind(self, true)} disabled={self.state.inlineCtrl.fc.invalid}>Save </button>

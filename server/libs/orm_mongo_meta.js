@@ -989,31 +989,31 @@ const FORMMETA = [
         {
             _id: Forms.FileMeta,
             name: "FileMeta",
-            store: "mongogrid",
+            store: "azureblob",
             fields: [
 
                 {
-                    name: "filename",
-                    display: "list",
+                    name: "Name",
+                    display: "primary",
                     title: "Unique Filename",
                     type: "text"
                 },
                 {
-                    name: "length",
+                    name: "Content-Length",
                     display: "list",
                     title: "size (bytes)",
                     type: "text"
                 },
                 {
-                    name: "uploadDate",
+                    name: "Creation-Time",
                     display: "list",
                     title: "Upload Date",
                     type: "datetime"
                 },
                 {
-                    name: "ownerId",
+                    name: "Content-Type",
                     display: "list",
-                    title: "Owner",
+                    title: "Content Type",
                     type: "text"
                 }
             ]

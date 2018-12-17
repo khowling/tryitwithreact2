@@ -1,34 +1,21 @@
-
-const   
-  express = require('express'),
-  router = express.Router(),
-  //jp = require("jsonpath"),
-  //xpath = require('xpath'),
-  //dom = require('xmldom').DOMParser,
-  meta = require('../libs/orm_mongo_meta')
-/*
-    , formidable = require('formidable')     // handle multipart post stream (already in express)
-    , Grid = require('gridfs-stream')  // write to mongo grid filesystem
-  //  , fs = require('fs') // TESTING ONLY
-    , mongo = require('mongodb')
-    , GridStore = require('mongodb').GridStore
-    , ObjectID = require('mongodb').ObjectID;
-*/
+const express = require('express')
+const router = express.Router()
+const meta = require('../libs/orm_mongo_meta')
+const {createServiceSAS} = require ("../libs/orm_azblob")
 /*
  * Express Routes
  */
 // node variables are file scoped, not block scoped like java (declaring a variable in a loop block makes it avaiable for the whole file
 // to scope to a function, create a anonoumous function (function(){ ... })()
 
-
 module.exports = function(options) {
 
-  var orm = require ("../libs/orm_mongo")(options),
-      orm_ams = require ("../libs/orm_ams"),
-      orm_sfdc = require ("../libs/orm_sfdc")
+  const orm = require ("../libs/orm_mongo")(options),
+        //orm_ams = require ("../libs/orm_ams"),
+        orm_sfdc = require ("../libs/orm_sfdc")
 
   console.log ('setting up dform routes ')
-  var db = options.db
+  const db = options.db
 
   var queryURLtoJSON = (urlquery) => {
     if (!urlquery)
@@ -140,12 +127,12 @@ module.exports = function(options) {
     return single ? res[0] : res
   }
 */
-  var returnJsonError = (res, strerr) => {
+  const returnJsonError = (res, strerr) => {
     console.log ("returnJsonError : " + strerr)
     return res.status(400).send({error: strerr})
   }
 
-   var validate_store_json_result = (form, store_data, query, context) => {
+  const validate_store_json_result = (form, store_data, query, context) => {
     //console.log (`validate_store_json_result: [${form.name}]: ${JSON.stringify(store_data)}`)
     let entries = (query && query._id) ? [store_data] : store_data
 
@@ -173,11 +160,6 @@ module.exports = function(options) {
       return r
     })
     return (query && query._id) ? res[0] : res
-  }
-
-  var returnJsonError = (res, strerr) => {
-    console.log ("returnJsonError : " + strerr)
-    return res.status(400).send({error: strerr})
   }
 
 //--------------------------------------------------------- FIND
@@ -303,44 +285,9 @@ module.exports = function(options) {
   });
 
 
-
-  /* ------------------------------------- FILE HANDLING
-   *
-   */
-
-  /* UNIX COMMAND
-   mongofiles -d myapp_dev list
-   mongofiles -d myapp_dev get profile-pic511a7c150c62fde30f000003
-   */
-  router.get('/file/:filename', function (req,res) {
-      var filename = req.params["filename"];
-      orm.getfile (filename, res);
-  });
-
-  // upload file into mongo, with help from formidable
-  router.put ('/file/:filename', function(req,res) {
-    var filename = req.params["filename"];
-    console.log (`----------------  /file/${filename}:  user: ${JSON.stringify(req.user)}`);
-
-    if (!req.user) {
-      return returnJsonError(res,  "Permission Denied")
-    } else {
-      orm.putfile(req, res, filename)
-    }
-  });
-
-  router.get('/filelist', function (req,res) {
-    orm.listfiles( function success(j) {
-      res.json(j);
-    }, (e) => {
-      return returnJsonError(res,  e)
-    });
-  });
-
   /* ------------------------------------- BOOT THE APP
    *
    */
-
   router.get('/loadApp', function(req, res) {
     let urlappid = req.query["appid"],
         appid = null
@@ -375,13 +322,15 @@ module.exports = function(options) {
       systemMetabyId[v._id.toString()] = v;
     }
 
-
+    const readSAS = createServiceSAS(process.env.STORAGE_SIGN_KEY, process.env.STORAGE_ACC, process.env.STORAGE_CONTAINER, 60) 
+    
     if (!appid || appid == meta.AdminApp._id) {
       // no user, no appid, return the admin app!
       req.session.context = {
         user: req.user,
         app: meta.AdminApp,
-        appMeta: meta.AdminApp.appperms.map(ap => { return systemMetabyId[ap.form._id.toString()]})
+        appMeta: meta.AdminApp.appperms.map(ap => { return systemMetabyId[ap.form._id.toString()]}),
+        readSAS
       };
       res.json(req.session.context);
     } else {
@@ -427,11 +376,11 @@ module.exports = function(options) {
                 }
               }
               let allMeta = systemMeta.concat (apps);
-              req.session.context = {user: req.user, app: apprec,  appMeta: allMeta};
+              req.session.context = {user: req.user, app: apprec,  appMeta: allMeta, readSAS};
               res.json(req.session.context);
             });
           } else {
-            req.session.context = {user: req.user, app: apprec,  appMeta: systemMeta};
+            req.session.context = {user: req.user, app: apprec,  appMeta: systemMeta, readSAS};
             res.json(req.session.context);
           }
       }, (e) => {

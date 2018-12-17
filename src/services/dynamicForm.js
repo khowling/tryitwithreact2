@@ -61,7 +61,7 @@ export default class DynamicForm {
       throw new Error("DynamicForm() only allow to construct once");
     }
     this._host = server_url;
-    this.ROUTES = {dform: '/api/', auth: '/auth/'};
+    this.ROUTES = {dform: this._host + '/api/', auth: this._host + '/auth/'};
     instance = this;
     this.clearApp();
     this._user = {};
@@ -73,16 +73,19 @@ export default class DynamicForm {
   }
 
   get host() {
-      return this._host;
+      return this._host
     }
   get user() {
-    return this._user;
+    return this._user
   }
   get app() {
-    return this._currentApp;
+    return this._currentApp
   }
   get appMeta() {
-    return this._appMeta;
+    return this._appMeta
+  }
+  get readSAS() {
+    return this._readSAS
   }
   get appUserData() {
     let userapprec = this.user && this.user.apps && this.user.apps.find (a => a.app._id === this.app._id);
@@ -113,12 +116,12 @@ export default class DynamicForm {
         console.log(`An error occurred while transferring the file ${evt}`);
       });
 
-      client.open(mode, this._host  + path);
+      client.open(mode, path);
       //client.setRequestHeader ("Authorization", "OAuth " + "Junk");
       //client.withCredentials = true;
       
-      if (mode === 'POST') {
-        //console.log ('_callServer: POSTING to ['+this._host  + path+']: ' + JSON.stringify(body));
+      if (mode === 'POST'  || mode === "PUT") {
+        //console.log (`_callServer: POSTING to ${path} ${JSON.stringify(body)}`);
         client.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
         client.send(JSON.stringify(body));
       } else {
@@ -149,6 +152,7 @@ export default class DynamicForm {
       this._appMeta = val.appMeta || [];
       this._user = val.user;
       this._currentApp = val.app;
+      this._readSAS = val.readSAS;
     });
   }
   getForm (fid) {
@@ -222,33 +226,10 @@ export default class DynamicForm {
     if (!Array.isArray(ids)) ids = [ids];
     return this._callServer(this.ROUTES.dform + 'db/' + formid + "?_id=" + ids.join(",") + (parent ? "&parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'DELETE');
   }
-  listFiles() {
-    return this._callServer(this.ROUTES.dform + 'filelist');
+
+  // Prep to Write a new file to storage
+  newFile(filename) {
+    return this._callServer(this.ROUTES.dform + 'file/new', "PUT", {filename});
   }
-  uploadFile (file, evtFn) {
-    return new Promise( (resolve, reject) => {
-      var xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener("progress",  evtFn, false);
-      xhr.addEventListener("load", function (evt) {
-        let response = JSON.parse(evt.target.response);
-        if (response._id) {
-          resolve(response);
-        } else {
-          reject (response.error);
-        }
-       }, false);
-     xhr.addEventListener("error", function (evt) {
-       reject (evt);
-     }, false);
-     xhr.addEventListener("abort", function (evt) {
-       reject(evt);
-     }, false);
-     xhr.addEventListener("loadstart", evtFn);
-     xhr.withCredentials = true;
-     xhr.open("PUT", this._host + '/dform/file/' + file.name, true);
-     xhr.setRequestHeader("Content-Type", file.type);
-     //console.log ('uploadFile() sending : ' + file.name + ', ' + file.type);
-     xhr.send(file);
-   });
-  }
+
 }
