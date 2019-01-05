@@ -1,12 +1,12 @@
 import React from 'react';
 import { IconField } from './utils.jsx';
-import Router from './router.jsx';
+import { Link } from './router.jsx';
 import DynamicForm from '../services/dynamicForm.js';
 
 function Tile({meta}) { 
   return (
     <li className="slds-p-horizontal--small slds-size--xx-small">
-      <a href={Router.URLfor(true, "ListPage", meta._id)} className="slds-app-launcher__tile slds-text-link--reset slds-app-launcher__tile--small">
+      <Link component="ListPage" formid={meta._id} className="slds-app-launcher__tile slds-text-link--reset slds-app-launcher__tile--small">
         <div className="slds-app-launcher__tile-figure slds-app-launcher__tile-figure--small">
           { meta.icon ?
           <IconField value={meta.icon} large={true}/>
@@ -17,7 +17,7 @@ function Tile({meta}) {
         <div className="slds-app-launcher__tile-body slds-app-launcher__tile-body--small">
           <p className="slds-truncate slds-text-link" title={meta.name}>{meta.name}</p>
         </div>
-      </a>
+      </Link>
     </li>
 )}
 

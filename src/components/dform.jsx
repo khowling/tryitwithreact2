@@ -1,9 +1,9 @@
 
 import React, {Component} from 'react'
 import jexl from 'jexl'
-import Router from './router.jsx'
+import {navTo, Link} from './router.jsx'
 import {Field} from './dform_fields.jsx'
-import {Button, SectionHeader, RecordHeader, FormHeader} from './headers.jsx'
+import {Button, SectionHeader, FormHeader} from './headers.jsx'
 import {Modal, SvgIcon, Alert, UpdatedBy } from './utils.jsx'
 import DynamicForm from '../services/dynamicForm.js'
 import {typecheckFn} from '../shared/dform.js'
@@ -260,30 +260,30 @@ export class FormMain extends Component {
         buttons =[
           {
             show: edit && this.props.form.store !== 'input' && "F", title: "Save",
-            action: this._save.bind(this),
-            then: this.props.onComplete ? (succval) => this.props.onComplete({_id: succval._id}) : (succval) => Router.navTo(true, "RecordPage", this.props.form._id, succval._id, false, true)
+            action: {cb: this._save.bind(this)},
+            then: this.props.onComplete ? (succval) => this.props.onComplete({_id: succval._id}) : (succval) => navTo("RecordPage", this.props.form._id, succval._id, null, true)
           }, {
             show: edit && this.props.form.store === 'input' && "F", title: "Continue",
-            action: () => Promise.resolve(this.state.changedata),
+            action: {cb: () => Promise.resolve(this.state.changedata)},
             then: this.props.onComplete
           }, {
             show: edit ? "F" : this.props.onComplete && "H", title: "Cancel",
-            action: this.props.onComplete ?  this.props.onComplete : Router.URLfor(true, record._id ? "RecordPage" : "ListPage", this.props.form._id, record._id ? record._id : null, null, true)
+            action: this.props.onComplete ?  {cb: this.props.onComplete} : {nav: { component: record._id ? "RecordPage" : "ListPage", formid: this.props.form._id, recordid: record._id ? record._id : null, goback: true}}
           }, {
             show: !edit && "H", title: "Delete",
-            action: this._delete.bind(this),
-            then: self.props.onFinished ? (succval) => self.props.onFinished('delete', succval) : (succval) => Router.navTo(true, "ListPage", this.props.form._id)
+            action: {cb: this._delete.bind(this)},
+            then: self.props.onFinished ? (succval) => self.props.onFinished('delete', succval) : (succval) => navTo("ListPage", this.props.form._id)
           }, {
             show: !edit && "H" , title: "Edit",
-            action: this.props.onComplete ? () => this.setState ({edit: true}) : Router.URLfor(true,"RecordPage", this.props.form._id, record._id, {e: true})
+            action: this.props.onComplete ? {cb: () => this.setState ({edit: true})} : {nav: {component: "RecordPage", formid: this.props.form._id, recordid: record._id, props: {e: true}}}
           }, {
             show: (!edit && this.props.form._id === "303030303030303030313030" && record.store === "metadata") && "H" , title: `Manage Data (${record._data ? record._data.length : '0'})`,
-            action: self._manageData.bind(self)
+            action: {cb: self._manageData.bind(self)}
           }]
           
       if (this.props.form.fields && !edit) {
 
-        const cust_buttons  = this.props.form.fields.filter(m => m.type === 'button').map(m => Object.assign({}, m, {show: "H", action: ((v) => {
+        const cust_buttons  = this.props.form.fields.filter(m => m.type === 'button').map(m => Object.assign({}, m, {show: "H", action: {cb: ((v) => {
             if (m.child_form) {
               console.log ('Customer button - if child form, get data')
               const cform = DynamicForm.instance.getForm(m.child_form._id);
@@ -302,7 +302,7 @@ export class FormMain extends Component {
               }
             }
             console.log (v)
-          })}))
+          })}}))
           buttons = buttons.concat (cust_buttons)
       }
 
@@ -365,7 +365,7 @@ export class FormMain extends Component {
               <Modal>
                 <div className="slds-modal__container w95">
                   <div style={{padding: "0.5em", background: "white"}}>
-                    <SectionHeader title={this.props.value.record.name} buttons={[{title: "Cancel", action: this._inlineDataFinished.bind(this, null) }, {title: "Save", disable: this.state.inlineDataDisbleSave, action: this._inlineDataFinished.bind(this, true)}]} />
+                    <SectionHeader title={this.props.value.record.name} buttons={[{title: "Cancel", action: {cb: this._inlineDataFinished.bind(this, null) }}, {title: "Save", disable: this.state.inlineDataDisbleSave, action: {cb: this._inlineDataFinished.bind(this, true)}}]} />
                   </div>
                   <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
                     <ListMain inline={true} form={this.props.value.record} value={{status: "ready", records: this.state.inlineData}}  onDataChange={this._inlineDataChange.bind(this)}/>
@@ -497,7 +497,7 @@ export class ListPage extends Component {
       return (
         <div className="slds-grid slds-wrap">
           <div className="slds-col slds-size--1-of-1">
-          { <FormHeader form={this.state.metaview} count={this.state.value.records ? this.state.value.records.length : 0} buttons={[{title: "New", action: Router.URLfor(true, "RecordPage", this.props.form._id, null, {"e": true})}]}/>
+          { <FormHeader form={this.state.metaview} count={this.state.value.records ? this.state.value.records.length : 0} buttons={[{title: "New", action: {nav: {component: "RecordPage", formid: this.props.form._id, props: {"e": true}}}}]}/>
           }
           </div>
           { this.state.value.status === "error" &&
@@ -565,7 +565,7 @@ export class ListMain extends Component {
       else // add new row
         this.setState({editrow: {value: {status: "ready", record: {}}, crud: "c"}});
     else
-      Router.navTo(true, "RecordPage", this.props.form._id, rowidx >= 0 && records[rowidx]._id,  !view ? {"e": true} : {});
+      navTo("RecordPage", this.props.form._id, rowidx >= 0 && records[rowidx]._id,  !view ? {"e": true} : {});
   }
 
   /***************/
@@ -648,11 +648,11 @@ export class ListMain extends Component {
  
     let self = this,
         {status, records} = this.state.inlineCtrl.enabled? this.state.inlineData : this.props.value
-    console.log (`ListMain - render:  ${status}`) //:  + ${JSON.stringify(this.props.value)}`);
+    //console.log (`ListMain - render:  ${status}`) //:  + ${JSON.stringify(this.props.value)}`);
     return (
       <div className="">
           {  (!self.state.inlineCtrl.enabled) && (!this.props.noheader) &&
-            <SectionHeader title={this.props.title || this.props.form.name} buttons={[{title: "New", action: this._ActionEdit.bind(this, -1, false)}]} />
+            <SectionHeader title={this.props.title || this.props.form.name} buttons={[{title: "New", action: {cb: this._ActionEdit.bind(this, -1, false)}}]} />
           }
           <div className="box-bo dy table-resp onsive no-pad ding">
             <div className="slds-scrollable--x">
@@ -716,7 +716,7 @@ export class ListMain extends Component {
                               <td key={fidx}><button className="link-button" style={{color: "#0070d2", cursor: "pointer"}} onClick={self._ActionEdit.bind(self, i, true)}>{listfield}</button></td>);
                             else
                               return (
-                              <td key={fidx}><a href={Router.URLfor(true, "RecordPage", self.props.form._id, row._id)}>{listfield}</a></td>);
+                              <td key={fidx}><Link component="RecordPage" formid={self.props.form._id} recordid={row._id}>{listfield}</Link></td>);
                           } else {
                             return (<td key={fidx}>{listfield}</td>);
                           }
@@ -871,7 +871,7 @@ export class RecordPage extends Component {
     return (
         <div className="slds-grid slds-wrap">
             <div className="slds-col slds-size--1-of-1">
-              { <RecordHeader form={this.state.metaview}/>
+              { <FormHeader form={this.state.metaview}/>
               }
             </div>
 

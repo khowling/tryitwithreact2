@@ -1,11 +1,8 @@
 
 import React, {Component} from 'react';
-
-import Router from './router.jsx'
 import {FormMain} from './dform.jsx'
-import { SvgIcon } from './utils.jsx';
-
 import DynamicForm from '../services/dynamicForm.js';
+import {Link} from './router.jsx'
 
 export class Register extends Component {
 
@@ -35,7 +32,7 @@ export class Login extends Component {
   render() {
       return (
 
-        <div className="slds-container--center slds-container--small">
+        <div className="slds-container--center slds-container--small" style={{"marginTop": "100px"}}>
 
           <div className="grid-card">
               <p className="login-box-msg">Sign in to start your session</p>
@@ -83,7 +80,7 @@ export class Login extends Component {
               </div>
 
               <a href="/#">I forgot my password</a><br/>
-              <a href={Router.URLfor(true,"Register")} className="text-center">Register a new membership</a>
+              <Link appid="_" component="Register" className="text-center">Register a new membership</Link>
             </div>
           </div>
         </div>
@@ -91,6 +88,7 @@ export class Login extends Component {
   }
 }
 
+/*
 export class AuthState extends Component {
   _changeapp(appid) {
     this.props.onchange(appid);
@@ -123,3 +121,4 @@ export class AuthState extends Component {
       return <div><a href={Router.URLfor(true,"Login")}>Login</a> ({this.props.currentApp ? this.props.currentApp.name : ""})</div>;
   }
 }
+*/

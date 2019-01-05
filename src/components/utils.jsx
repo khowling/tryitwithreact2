@@ -1,6 +1,6 @@
 
 import React from 'react';
-import Router from './router.jsx';
+import { Link } from './router.jsx';
 import {FieldDate, FieldImage} from './dform_fields.jsx';
 import DynamicForm from '../services/dynamicForm.js';
 
@@ -45,11 +45,13 @@ export const UpdatedBy = ({user, date}) => {
       userform =  df.getFormByName('Users');
   return (
     <span className=" slds-form-element__static">
-      <a href={userform && Router.URLfor(true, "RecordPage", userform._id, user._id)} className="slds-pill__label">
+      {userform && 
+      <Link component="RecordPage" formid={userform._id} recordid={user._id} className="slds-pill__label">
         <FieldImage value={user.picture} inlist={true} />
         <span style={{"marginLeft": "5px"}}></span>
         <span>{user.name}, <FieldDate value={date}/></span>
-      </a>
+      </Link>
+      }
     </span>
   )
 }

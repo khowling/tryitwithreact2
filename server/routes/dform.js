@@ -215,7 +215,7 @@ module.exports = function(options) {
         userdoc = req.body,
         formdef = idparams2meta (formparam, req.query.parent, req.session.context)
 
-    if (false && !req.user)
+    if (true && !req.user)
       return returnJsonError(res, `Permission Denied`);
     else {
       console.log (`-----  post: calling save with ${formparam} ${req.query.parent}`);

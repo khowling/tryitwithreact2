@@ -1,6 +1,6 @@
 
 import React, {Component, useState, useEffect, useRef } from 'react';
-import Router from './router.jsx';
+import { Link } from './router.jsx';
 
 //import ProgressBar from 'progressbar'
 import {Modal, SvgIcon, IconField, Alert } from './utils.jsx';
@@ -10,6 +10,10 @@ import {FormHeader}       from './headers.jsx';
 import DynamicForm from '../services/dynamicForm.js';
 import { putBlob, listFiles} from '../services/azureBlob.js';
 
+
+
+
+// ---------------------------------------------------------------------------------------------------
 export class FieldAttachment extends Component {
   constructor(props) {
     super(props);
@@ -69,7 +73,9 @@ export class FieldAttachment extends Component {
   }
 }
 
+// ------------------------------------------------------------------------------------------
 export function FieldImage({fielddef, value, onChange, edit, inlist}) {
+
   const [ picFileList, setPicFileList ] = useState({state: "wait", records: []})
   const [ inputValue, setInputValue ] = useState(value)
   const [ existing, setExisting ] = useState({picselect: false, filemeta: null})
@@ -80,7 +86,6 @@ export function FieldImage({fielddef, value, onChange, edit, inlist}) {
 
   // if prop value changes!
   useEffect(() => {
-    //console.log (`InputStateful useEffect ${fielddef.name}: prop:${value} state:${inputvalue}`)
     if (inputValue !== value)
       setInputValue(value)
   }, [value])
@@ -121,9 +126,8 @@ export function FieldImage({fielddef, value, onChange, edit, inlist}) {
   }
 
   function _selectedFile(file) {
-    
-    console.log ('called _selectedFile with:' + JSON.stringify(file))
-    const attachment = {container_url: DynamicForm.instance.readSAS.container_url, filename: file}
+    const attachment = {container_url: DynamicForm.instance.readSAS.container_url, filename: file.Name}
+    console.log ('called _selectedFile with:' + JSON.stringify(attachment))
     if (file) setInputValue(attachment)
     setExisting({picselect: false, filemeta: null})
     if (onChange) onChange ({[fielddef.name]: attachment})
@@ -194,141 +198,11 @@ export function FieldImage({fielddef, value, onChange, edit, inlist}) {
   }
 }
 
+//
+// function to generate reference search form (for seleced value in edit and view modes, and list values)
 
-/*
-export class FieldImage extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      value: props.value, // needs to be mutatable
-      picselectexisting: false,
-      picFileList: {state: "wait", records: []}
-    };
-    this._selectedFile = this._selectedFile.bind(this);
-  }
-
-  componentWillReceiveProps(nextProps) {
-    //console.log ('Field componentWillReceiveProps ' + JSON.stringify(nextProps));
-    if (nextProps.value !== this.props.value) {
-      //console.log ('the field value has been updated by the form, update the field (this will override the field state)');
-      this.setState({value: nextProps.value});
-    }
-  }
-
-  componentDidMount() {
-    if (this.props.edit) {
-      //this.line = new ProgressBar.Line(this.refs.progressline, {color: '#FCB03C'})
-    }
-  }
-
-  componentWillUnmount () {
-    if (this.line) this.line.destroy();
-  }
-
-  _clickFile() {
-    this.refs.imageinput.click();
-  }
-
-  _fileuploadhtml5(e) {
-    var file = e.currentTarget.files[0];
-
-    console.log('Field _fileuploadhtml5 : ' + file.name);
-    uploadFile(file, progressEvt => {
-      console.log ('progress ' + progressEvt.loaded);
-      if (progressEvt.lengthComputable) {
-        this.line.animate(Math.round(progressEvt.loaded / progressEvt.total));
-      } else {
-        this.line.animate(0.5);
-      }
-    }).then (succVal => {
-
-      this.line.animate(1, () => this.line.set(0));
-      console.log ('got :' + JSON.stringify (succVal));
-
-      this.setState({value: succVal.url}, () => {
-        if (this.props.onChange)
-          this.props.onChange ({[this.props.fielddef.name]: succVal.url});
-        });
-     //data.documents[field.name] = evt.target.responseText;
-   }, errEvt => {
-    // console.log ("There was an error attempting to upload the file:" + JSON.stringify(errEvt));
-     alert (`Upload failed: ${errEvt}`);
-     this.line.set(0);
-   });
-   return false;
-  }
-
-  _selectExisting() {
-    const df = DynamicForm.instance,
-        filemeta = df.getFormByName('FileMeta');
-    if (filemeta) {
-      this.setState({picselectexisting: true, filemeta: filemeta}, () => {
-        df.listFiles().then(succVal => {
-          this.setState({picFileList: {state: "wait", records: succVal}});
-        });
-      });
-    } else {
-      alert ("'FileMeta' not part of the application");
-    }
-  }
-  _selectedFile(filename) {
-    let fileid = filename  || this.state.value;
-    console.log ('called _selectedFile with:' + JSON.stringify(filename));
-    this.setState({value: fileid, picselectexisting: false, filemeta: null}, () => {
-      if (this.props.onChange)
-        this.props.onChange ({[this.props.fielddef.name]: fileid});
-      });
-  }
-
-  render() {
-    let img_src = this.state.value ? this.state.value : "http://placehold.it/120x120"
-
-    if (!this.props.edit) {
-      let marginBott = (!this.props.inlist) ? {marginBottom: "4px"} : {};
-      return (
-        <div className={this.props.inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={marginBott}>
-          <img style={{maxHeight: "150px"}} src={img_src} alt=""/>
-        </div>);
-
-    } else {
-
-      return (
-        <div>
-          <input type="file" ref="imageinput" name="file" style={{display: "none"}} accept="image/*" onChange={this._fileuploadhtml5.bind(this)} />
-          <div className="pic-with-text" style={{backgroundImage: "url("+img_src+")"}}>
-            <header>
-              <div style={{margin: "8px 30px"}}>
-                <button onClick={this._clickFile.bind(this)}>upload new picture</button> |
-                <button onClick={this._selectExisting.bind(this)}> select existing picture</button>
-              </div>
-              <div ref="progressline"></div>
-            </header>
-
-          </div>
-          { this.state.picselectexisting &&
-            <Modal>
-              <div className="slds-modal__container w95">
-                <div style={{padding: "0.5em", background: "white"}}>
-                  <FormHeader form={this.state.filemeta}/>
-                </div>
-                <div className="slds-modal__content" style={{padding: "0.5em", minHeight: "400px"}}>
-                  <ListMain form={this.state.filemeta} value={this.state.picFileList} selected={this._selectedFile}/>
-                </div>
-                <div className="slds-modal__footer"></div>
-              </div>
-            </Modal>
-          }
-        </div>
-      );
-    }
-  }
-}
-*/
-    //
-    // function to generate reference search form (for seleced value in edit and view modes, and list values)
-
-function FieldReference_LookupRenderProp ({search_form, record, render}) {
-  //console.log (`FieldReference_LookupRenderProp called ${search_form.name}`);
+function FieldReferenceLookupRenderProp ({search_form, record, render, children}) {
+  //console.log (`FieldReferenceLookupRenderProp called ${search_form.name}`);
   const df = DynamicForm.instance
   if (!record) {
     return  <span style={{color: "red"}}><IconField value={search_form.icon} small={true}/>no data</span>;
@@ -338,7 +212,7 @@ function FieldReference_LookupRenderProp ({search_form, record, render}) {
     let priimage, pritext
     for (let fld of search_form.fields) {
       if (fld.display === 'primary' && record[fld.name]) {
-        //console.log (`FieldReference_LookupRenderProp ${fld.type} ${JSON.stringify(record[fld.name])}`);
+        //console.log (`FieldReferenceLookupRenderProp ${fld.type} ${JSON.stringify(record[fld.name])}`);
         if (fld.type === 'icon' || fld.type === 'image') {
           priimage = <Field fielddef={fld}  value={record[fld.name]} inlist={true} />;
         } else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id )
@@ -352,7 +226,7 @@ function FieldReference_LookupRenderProp ({search_form, record, render}) {
     if (!priimage) {
       priimage = <IconField value={{_id:"std30"}} small={true}/>;
     }
-    return render({pritext, priimage});
+    return children({pritext, priimage});
   }
 }
 
@@ -438,7 +312,8 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
       }
 
       return (
-        <FieldReference_LookupRenderProp search_form={sform} record={inputValue} render={({pritext, priimage}) => (
+        <FieldReferenceLookupRenderProp search_form={sform} record={inputValue}>
+          {({pritext, priimage}) => (
           <span className={`slds-pill ${fielddef.createnew_form? "slds-pill_link" : "" }`}>
             
             <span className="slds-pill__icon_container">
@@ -448,15 +323,16 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
             </span>
 
             { fielddef.createnew_form ? (
-            <a href={Router.URLfor(true,"RecordPage", fielddef.createnew_form._id, inputValue._id)} className="slds-pill__action">
+            <Link component="RecordPage" formid={fielddef.createnew_form._id} recordid={inputValue._id} className="slds-pill__action">
               <span className="slds-pill__label">{pritext}</span>
-            </a>
+            </Link>
             ) : (
             <span className="slds-pill__label" style={{"paddingRight": "calc(1rem + 0.25rem + 2px)"}}>{pritext}</span>
             )}
 
           </span>
-        )}/>
+          )}
+        </FieldReferenceLookupRenderProp>
       )
   
     } else  {
@@ -473,7 +349,8 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
         <div className={`slds-combobox slds-dropdown-trigger ${lookup.visible ? "slds-is-open" : ""}`}>
           
         { inputValue ?
-          <FieldReference_LookupRenderProp search_form={sform} record={inputValue} render={({pritext, priimage}) => (
+          <FieldReferenceLookupRenderProp search_form={sform} record={inputValue} >
+            {({pritext, priimage}) => (
             <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_left-right" role="none">
               
                 <span className="slds-icon_container slds-icon-standard-account slds-combobox__input-entity-icon" title="Account">
@@ -489,7 +366,8 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
                 <span className="slds-assistive-text">Remove selected option</span>
               </button>
               </div>
-            )}/>
+            )}
+            </FieldReferenceLookupRenderProp>
           :
 
           <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_right" role="none">
@@ -532,7 +410,8 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
               lookup.values.map(function(row, i) { return (
                 <li key={i} className="slds-lookup__item dont-close-on-blur" onClick={() => _handleLookupSelectOption(row)} >
         
-                  <FieldReference_LookupRenderProp search_form={sform} record={row} render={({pritext, priimage}) => (
+                  <FieldReferenceLookupRenderProp search_form={sform} record={row} >
+                  {({pritext, priimage}) => (
                   <div className="slds-media slds-listbox__option slds-listbox__option_entity slds-listbox__option_has-meta" >
                     <span className="slds-media__figure slds-listbox__option-icon">
                       <span className="slds-icon_container slds-icon-standard-account">
@@ -546,7 +425,8 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
                       </span>
                     
                   </div>
-                  )}/>
+                  )}
+                  </FieldReferenceLookupRenderProp>
                 </li>
         
             );})}
@@ -821,8 +701,8 @@ export function Field ({fielddef, value, edit, inlist, onChange}) {
 
 
   //console.log (`dform_field.jsx - Field,  ${fielddef.name} : ${JSON.stringify(value)}`);
-  let field,
-      df = DynamicForm.instance;
+  let field
+  const df = DynamicForm.instance
 
   if (fielddef.type === "image" ) {
     field = (<FieldImage fielddef={fielddef} value={value} edit={edit} onChange={onChange} inlist={inlist}/>);

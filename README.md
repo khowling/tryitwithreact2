@@ -6,8 +6,16 @@ PURE COMPONENT is one of the most significant ways to optimize React application
 
 PureComponent changes the life-cycle method shouldComponentUpdate and adds some logic to automatically check whether a re-render is required for the component.  This allows a PureComponent to call the method render only if it detects changes in state or props
 
+### Hooks
+
+All React components become functions! no more ES6 classes
+
+So how does React know which state corresponds to which useState call? Ensure that Hooks (useState , useEffect) are called in the same order in the function each time a component renders. That’s what allows React to correctly preserve the state of Hooks between multiple useState and useEffect calls
+
+Don’t call Hooks from regular JavaScript functions, only from  React "function components", or Call Hooks from custom Hooks (use[Name])
 
 
+granularity of State - we recommend to split state into multiple state variables based on which values tend to change together
 
 ### simple field Types
 type: "text"

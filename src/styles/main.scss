@@ -5,6 +5,17 @@
 
 @import '~@salesforce-ux/design-system/scss/index.scss';
 
+
+.slds-global-header__logo {
+    width: 12.5rem;
+    height: 2.5rem;
+    background-image: url(/assets/images/Azure_logo_icon_50.svg);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: 0;
+}
+
+
 /* Reference lookup field FIX, when in edit mode and a value has been selected */
 .slds-input[readonly] {
     padding-left: 0.75rem;
