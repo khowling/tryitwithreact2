@@ -647,12 +647,13 @@ export class ListMain extends Component {
   render() {
  
     let self = this,
-        {status, records} = this.state.inlineCtrl.enabled? this.state.inlineData : this.props.value
+        {status, records} = this.state.inlineCtrl.enabled? this.state.inlineData : this.props.value,
+        buttons = this.props.selected ? [{title: "Cancel", action: {cb: this.props.selected.bind(this, false)}}] : [{title: "New", action: {cb: this._ActionEdit.bind(this, -1, false)}}]
     //console.log (`ListMain - render:  ${status}`) //:  + ${JSON.stringify(this.props.value)}`);
     return (
       <div className="">
           {  (!self.state.inlineCtrl.enabled) && (!this.props.noheader) &&
-            <SectionHeader title={this.props.title || this.props.form.name} buttons={[{title: "New", action: {cb: this._ActionEdit.bind(this, -1, false)}}]} />
+            <SectionHeader title={this.props.title || this.props.form.name} buttons={buttons} />
           }
           <div className="box-bo dy table-resp onsive no-pad ding">
             <div className="slds-scrollable--x">
@@ -683,7 +684,9 @@ export class ListMain extends Component {
                         </button>add
                       </span>
                       :
-                      <span className="slds-truncate">del edit</span>
+                      !this.props.selected && (
+                        <span className="slds-truncate">del edit</span>
+                      )
                       }
                     </th>
                     }

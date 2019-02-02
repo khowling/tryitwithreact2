@@ -67,7 +67,7 @@ export default ({appid}) => {
        <div className="slds-grid slds-wrap">
             { head && <div className="slds-col slds-size--1-of-1">{head}</div>
             }
-            { main && <div className="slds-col slds-size--1-of-1 slds-medium-size--2-of-3">{main}</div>
+            { main && <div className="slds-col slds-size--1-of-1 slds-medium-size--3-of-3">{main}</div>
             }
             { side && <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-3">{side}</div>
             }

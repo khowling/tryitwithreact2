@@ -24,13 +24,13 @@ module.exports = function (passport, options) {
     // this will be as simple as storing the user ID when serializing, and
     // finding the user by ID when deserializing.
     passport.serializeUser(function (user, done) {
-        console.log ("passport.serializeUser");
+        console.log (`auth.js - passport.serializeUser(${user._id})`);
         done(null, user._id);
     });
 
     // from the id, retrieve the user details
     passport.deserializeUser(function (id, done) {
-        //console.log(`-------- passport.deserializeUser : ${id}`);
+        console.log(`auth.js - passport.deserializeUser: call orm.find(${id})`);
 
         orm.find({form: meta.FORMMETA.find(f => f._id === meta.Forms.Users)}, {_id: id, display: 'all_no_system'}).then( user => {
             //console.log("-------- passport.deserializeUser : got user");
@@ -91,7 +91,7 @@ module.exports = function (passport, options) {
             console.log ("auth.js - findAndUpdateUser: ERROR - Found more than one user");
             return done(null, false, "ERROR - Found more than one user");
           } else {
-            console.log("auth.js - findAndUpdateUser: Found existing user");
+            console.log(`auth.js - findAndUpdateUser: Found existing user (${existinguser[0]._id})`);
             const AuthForm = meta.FORMMETA.find(f => f._id === meta.Forms.AuthProviders)
             // update the Users AuthProvider (comment out until COSMOS suports '$')
             /*
@@ -99,18 +99,19 @@ module.exports = function (passport, options) {
             console.log(`auth.js - findAndUpdateUser: No existing user, creating from social profile`);
 
             
-            orm.save ({form: AuthForm, parent: {form: UserForm, field: UserForm.fields.find((d) => d.name === "provider"), query: {_id: existinguser[0]._id}}}, updateuser).then(function success(newuser) {
+            orm.save ({form: AuthForm, parent: {form: UserForm, field: UserForm.fields.find((d) => d.name === "provider"), query: {_id: existinguser[0]._id}}}, updateuser).then(function success(newuser_id) {
                 console.log (`auth.js - findAndUpdateUser: Saved new user`);
-                done(null, newuser);
+                done(null, newuser_id);
             }, function error(ee) {
                 console.log ('auth.js - findAndUpdateUser: Create user error: ' + ee);
                 return done(null, false, 'error creating user');
             });
                 */
-            // TEMP WORKAROUND
+            // TEMP WORKAROUND - Cosmos doesnt support positional '$'
+            // https://feedback.azure.com/forums/263030-azure-cosmos-db/suggestions/20091454-positional-array-update-via-query-support
             // delete Chatter AuthForm
             orm.delete ({form: AuthForm, parent: {form: UserForm, field: UserForm.fields.find((d) => d.name === "provider"), query: {_id: existinguser[0]._id}}}, {q: {"type": provider, "provider_id": provider_id}}).then(function success(newuser) {
-                console.log (`auth.js - findAndUpdateUser: Saved new user`);
+                console.log (`auth.js - findAndUpdateUser: TEMPWORKAROUND - delete the AuthForm embedded doc`);
                 const p_idx = existinguser[0].provider.findIndex(p => p.provider_id === provider_id)
                 if (p_idx <0) {
                     existinguser[0].provider.push(pobject)
@@ -118,15 +119,16 @@ module.exports = function (passport, options) {
                     existinguser[0].provider.splice(p_idx, 1, pobject)
                 }
                 // Insert new AuthForm
-                orm.save ({form: AuthForm, parent: {form: UserForm, field: UserForm.fields.find((d) => d.name === "provider"), query: {_id: existinguser[0]._id}}}, pobject).then(function success(newuser) {
-                    console.log (`auth.js - findAndUpdateUser: Saved new user`);
-                    done(null, newuser);
+                orm.save ({form: AuthForm, parent: {form: UserForm, field: UserForm.fields.find((d) => d.name === "provider"), query: {_id: existinguser[0]._id}}}, pobject).then(function success(provider_id) {
+                    // 
+                    console.log (`auth.js - findAndUpdateUser: TEMPWORKAROUND - re-create the AuthForm embedded doc ${JSON.stringify(provider_id)}`);
+                    done(null, {_id: existinguser[0]._id});
                 }, function error(ee) {
                     console.log ('auth.js - findAndUpdateUser: Create user error: ' + ee);
                     return done(null, false, 'error creating user');
                 });
                 
-                return done(null, existinguser[0]);
+                //return done(null, existinguser[0]);
             }, function error(ee) {
                 console.log ('auth.js - findAndUpdateUser: Create user error: ' + ee);
                 return done(null, false, 'error deleting user');

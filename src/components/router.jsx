@@ -6,6 +6,8 @@ import {ListMain, ListPage, RecordPage}  from './dform.jsx'
 import {TimeLine} from './timeline.jsx'
 import {Login, Register }  from './auth.jsx'
 
+import {ECOMPage} from '../components-ms/ecommerce.jsx'
+
 const DEFAULT_LANDING = 'TileList';
 
 
@@ -122,7 +124,7 @@ export function ensureAppInUrl (newappid) {
 
 const listeners = [];
 var  _Router_backUrl = null;
-const _Router_FACTORIES = Object.assign({}, ...[ListMain, TileList, ListPage, RecordPage, TimeLine, Register, Login, Register].map(mod => { return ({[mod.name]: React.createFactory(mod)})}))
+const _Router_FACTORIES = Object.assign({}, ...[ECOMPage, ListMain, TileList, ListPage, RecordPage, TimeLine, Register, Login, Register].map(mod => { return ({[mod.name]: React.createFactory(mod)})}))
 
 export function useRouter (booted, loadedApp, newAppRequestedFn) {
   const [renderRoute, setRenderRoute] = useState()

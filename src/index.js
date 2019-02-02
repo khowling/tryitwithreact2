@@ -1,7 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
+
+/* admin lightning classes */
 import './index.css';
 import './styles/main.scss';
+
+/* microsoft mwf theme  */
+import './styles/mwf-west-european-default.min.css'
+
+
 import App from './App';
 import {decodeCurrentURI} from './components/router.jsx'
 import DynamicForm from './services/dynamicForm.js'

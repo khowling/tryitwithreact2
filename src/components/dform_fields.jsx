@@ -126,11 +126,13 @@ export function FieldImage({fielddef, value, onChange, edit, inlist}) {
   }
 
   function _selectedFile(file) {
-    const attachment = {container_url: DynamicForm.instance.readSAS.container_url, filename: file.Name}
-    console.log ('called _selectedFile with:' + JSON.stringify(attachment))
-    if (file) setInputValue(attachment)
     setExisting({picselect: false, filemeta: null})
-    if (onChange) onChange ({[fielddef.name]: attachment})
+    if (file) {
+      const attachment = {container_url: DynamicForm.instance.readSAS.container_url, filename: file.Name}
+      console.log ('called _selectedFile with:' + JSON.stringify(attachment))
+      setInputValue(attachment)
+      if (onChange) onChange ({[fielddef.name]: attachment})
+    }
   }
 
   function _selectExisting() {
