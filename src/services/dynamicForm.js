@@ -1,18 +1,21 @@
 
 import jexl from 'jexl';
-jexl.addTransform('get', function(ids, view) {
+
+// usage:   record_id_expression | get (<form name>)
+jexl.addTransform('getbyformId', function(ids, formid) {
+  //console.log ('jexl.Transform : ' + ids)
+  return DynamicForm.instance.getbyId(formid, ids)
+})
+
+// usage:   record_id_expression | get (<form name>)
+jexl.addTransform('get', function(ids, form_name) {
   //console.log ('jexl.Transform : ' + ids)
   let df = DynamicForm.instance,
-      f = df.getFormByName(view)
-
+      f = df.getFormByName(form_name)
   if (f) {
-    if (f.store === 'metadata') {
-      return f._data.find(m => m._id === ids)
-    } else {
-      return df.get(f._id, ids)
-    } 
+    return df.getbyId(f._id, ids)
   } else {
-    return Promise.reject(`cannot find view ${view}`)
+    return Promise.reject(`cannot find view ${form_name}`)
   }
 });
 
@@ -186,9 +189,18 @@ export default class DynamicForm {
     return {primary_text: searchview.fields[pri_fieldidx].name, primary_image: pri_fieldidx_pic >= 0 && searchview.fields[pri_fieldidx_pic].name}
   }
   // get 1 or many by ID
-  get(formid, ids, display = 'all') {
-    if (!Array.isArray(ids)) ids = [ids];
-    return this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${ids ? ("&_id=" + ids.join(",")) : ''}`);
+  getbyId(formid, ids, display = 'all') {
+    
+    const f = DynamicForm.instance.getForm (formid)
+
+    if (f.store === 'metadata') {
+      return Promise.resolve(f._data.find(m => m._id === ids))
+    } else if  (f.store === "rest") {
+      return this._callServer(f.url+"?_id="+ids)
+    } else {
+      if (!Array.isArray(ids)) ids = [ids]
+      return this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${ids ? ("&_id=" + ids.join(",")) : ''}`)
+    }
   }
   
   // search by primary field (return primary fields by default)
@@ -217,11 +229,20 @@ export default class DynamicForm {
   }
   // full query
   query(formid, q, display = 'list') {
-    return this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${(q ? ("&q=" + encodeURIComponent(JSON.stringify(q))) : '')}`);
+    const f = DynamicForm.instance.getForm (formid)
+    if (f.store === 'metadata') {
+      return Promise.resolve(f._data)
+    } else if  (f.store === "rest") {
+      return this._callServer(f.url)
+    } else {
+      return this._callServer(`${this.ROUTES.dform}db/${formid}?d=${display}${(q ? ("&q=" + encodeURIComponent(JSON.stringify(q))) : '')}`)
+    } 
   }
+
   save(formid, body, parent) {
     return this._callServer(this.ROUTES.dform + 'db/' + formid + (parent ? "?parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'POST', body);
   }
+
   delete(formid, ids, parent) {
     if (!Array.isArray(ids)) ids = [ids];
     return this._callServer(this.ROUTES.dform + 'db/' + formid + "?_id=" + ids.join(",") + (parent ? "&parent="+encodeURIComponent(JSON.stringify(parent)) : ''), 'DELETE');

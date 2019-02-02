@@ -84,7 +84,27 @@ readonly
 
 --- load
 
-RecordPage -> ListMain -> _formControlState
+### 
+
+metaform: UIComponents
+
+TileList
+    - props: [formid, formid...]
+
+ListPage 
+    - props: - form: {._id = }, query: {}
+    - componentDidMount : df.query or df.rest -> setState  {value: {status: "ready", records}
+    - render FormHeader
+    - render ListMain (handles Save/Edit/Delete)
+
+RecordPage 
+    - props: xid (record expession), e (edit)
+    - componentDidMount : ${this.props.xid}|get("${this.state.metaview.name}")
+    - render FormMain
+    - redner ListMain (for childformfields) -> _formControlState
+    - render ListPage (for relatedlistfields)
+
+
 ListMain -> FormMain -> _formControlState
 
 React: https://reactjs.org/docs/uncontrolled-components.html

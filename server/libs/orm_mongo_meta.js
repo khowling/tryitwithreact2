@@ -161,6 +161,19 @@ const UIComponents = [
               type: "jsonarea"
           }
         ]
+      },
+      {
+        _id: "ECOMPage",
+        name: "ECOMPage",
+        desc: "store front",
+        props: [
+            {
+                name: "query",
+                title: "Query",
+                type: "jsonarea",
+                placeholder: ""
+            }
+        ]
       }
     ]
 
@@ -299,21 +312,21 @@ const FORMMETA = [
                 {
                     name: "name",
                     display: "primary",
-                    title: "Form Name",
+                    title: "Component Name",
                     type: "text",
                     placeholder: "",
                     required: true
                 },
                 {
                     name: "desc",
-                    title: "Form Description",
+                    title: "Component Description",
                     type: "textarea",
                     placeholder: "Coplete Form Description",
                     required: false
                 },
                 {
                     name: "props",
-                    title: "Properties",
+                    title: "URL Properties",
                     type: "childform",
                     child_form: { _id: Forms.FormFieldMetadata},
                     _id: new ObjectID('000000000156')
@@ -1048,7 +1061,7 @@ const AdminApp = {
             component: {_id: "TileList"},
             title: "Admin Tile List",
             props: {
-              formids: [Forms.formMetadata, Forms.Users, Forms.App, Forms.ImportMeta]
+              formids: [Forms.formMetadata, Forms.Users, Forms.App, Forms.ComponentMetadata, Forms.ImportMeta]
             }
           }
         ]

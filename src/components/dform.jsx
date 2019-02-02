@@ -1,5 +1,5 @@
 
-import React, {Component} from 'react'
+import React, {Component, useState, useEffect} from 'react'
 import jexl from 'jexl'
 import {navTo, Link} from './router.jsx'
 import {Field} from './dform_fields.jsx'
@@ -458,8 +458,46 @@ export const FieldWithoutLabel = ({field, value, edit, fc, onChange}) => {
 }
 
 
-// RecordList - list of records, supports inline editing of embedded docs.
-export class ListPage extends Component {
+// *** NEW ListPage
+export function ListPage ({form, query}) {
+  const [ value, setValue ] = useState({status: "notready", records: []})
+  const f = DynamicForm.instance.getForm (form._id)
+
+  useEffect(() => {
+    _dataChanged()
+  }, [form, query])
+
+  function _dataChanged() {
+    const f = DynamicForm.instance.getForm (form._id)
+    DynamicForm.instance.query (f._id, query && query).then(
+      succRes => setValue({status: "ready", records: succRes}),
+      errRes  => setValue({status: "error", message: errRes.error })
+    )
+  }
+
+  return (
+    <div className="slds-grid slds-wrap">
+      <div className="slds-col slds-size--1-of-1">
+      { <FormHeader form={f} count={value.records ? value.records.length : 0} buttons={[{title: "New", action: {nav: {component: "RecordPage", formid: f._id, props: {"e": true}}}}]}/>
+      }
+      </div>
+      { value.status === "error" &&
+        <div className="slds-col slds-size--1-of-1">
+          <Alert type="error" message={value.message}/>
+        </div>
+      }
+      { value.status !== "error" &&
+      <div className="slds-col slds-size--1-of-1">
+        <ListMain noheader={true} value={value} form={f} onDataChange={_dataChanged}/>
+      </div>
+      }
+    </div>
+  )
+}
+
+
+/* ListPage_Old - list of records, supports inline editing of embedded docs.
+export class ListPage_Old extends Component {
 
     constructor(props) {
       super(props);
@@ -478,19 +516,21 @@ export class ListPage extends Component {
 
     _dataChanged() {
       let df = DynamicForm.instance;
-      //console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
-      if (this.state.metaview.store !== "rest") {
+      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
+
+      if (this.state.metaview.store === 'metadata') {
+        this.setState({value: {status: "ready", records: this.state.metaview._data}})
+      } else if  (this.state.metaview.store === "rest") {
+        df._callServer(this.state.metaview.url).then(succRes =>
+          this.setState({value: {status: "ready", records: succRes}})
+        )
+      } else {
         //df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
         df.query (this.props.form._id, this.props.query && this.props.query).then(
           succRes => this.setState({value: {status: "ready", records: succRes}}),
-          errRes  => this.setState({value: {status: "error", message: errRes.error.message }})
-        );
-      } else if (this.state.metaview.store === "rest") {
-        df._callServer(this.state.metaview.url).then(succRes =>
-          this.setState({value: {status: "ready", records: succRes}})
-        );
-      }
-
+          errRes  => this.setState({value: {status: "error", message: errRes.error }})
+        )
+      } 
     }
 
     render() {
@@ -514,7 +554,7 @@ export class ListPage extends Component {
       );
     }
 }
-/*ListPage.propTypes = {
+ListPage.propTypes = {
   // Core
   urlparam: React.PropTypes.shape({
     view: React.PropTypes.string.isRequired,
@@ -821,22 +861,19 @@ export class RecordPage extends Component {
 
   _dataChanged() {
     //console.log ('RecordPage _dataChanged');
-    let df = DynamicForm.instance;
     if (this.state.crud === 'u' || this.state.crud === 'r') {
-      if (this.state.metaview.store !== "rest") {
-        //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
-        var exp_st = `${this.props.xid}|get("${this.state.metaview.name}")`;
-        //console.log (`RecordPage _dataChanged jexl : ${exp_st}`);
-        jexl.eval(exp_st, {user: df.user, app: df.app, appUserData: df.appUserData}).then(succVal => {
-            this.setState({ value: {status: "ready", record: succVal}});
-        }, errval => {
-          //console.log ('RecordPage _dataChanged jexl error ' + errval);
-          this.setState({ value: {status: "error", message: `${errval}`}});
-        });
-      } else if (this.state.store === "sfdc")
-        df._callServer(this.state.metaview.url+"?_id="+this.props.urlparam.id).then(succRes =>
-          this.setState({value: {status: "ready", record: succRes}})
-        );
+
+      //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
+      var exp_st = `${this.props.xid}|getbyformId("${this.props.form._id}")`;
+      //console.log (`RecordPage _dataChanged jexl : ${exp_st}`);
+      const df = DynamicForm.instance
+      jexl.eval(exp_st, {user: df.user, app: df.app, appUserData: df.appUserData}).then(
+
+        //const f = DynamicForm.instance.getForm (this.props.form._id)
+        //DynamicForm.instance.getbyId(this.props.form._id, this.props.xid).then(
+        succVal => this.setState({ value: {status: "ready", record: succVal}}), 
+        errval => this.setState({ value: {status: "error", message: `${errval}`}})
+      )
     }
   }
 

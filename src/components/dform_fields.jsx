@@ -162,7 +162,7 @@ export function FieldImage({fielddef, value, onChange, edit, inlist}) {
   if (!edit) {
     return (
       <div className={inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={!inlist ? {marginBottom: "4px"} : {}}>
-        <img style={{maxHeight: "150px"}} src={img_src} alt=""/>
+        <a href={img_src} ><img style={{maxHeight: "150px"}} src={img_src} alt=""/></a>
       </div>
     )
 
