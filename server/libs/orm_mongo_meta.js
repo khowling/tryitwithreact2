@@ -168,6 +168,12 @@ const UIComponents = [
         desc: "store front",
         props: [
             {
+                name: "form",
+                title: "Data Form",
+                type: "reference",
+                search_form: { _id: Forms.formMetadata}
+            },
+            {
                 name: "query",
                 title: "Query",
                 type: "jsonarea",

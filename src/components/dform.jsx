@@ -430,7 +430,7 @@ FormMain.defaultProps = { inModal: false};
 */
 // stateless function components
 // always use this for components that doesnt need any state or lifecycle methods!
-export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
+export function FieldWithLabel ({field, value, edit, fc, onChange}) {
   return (
     <div className="slds-col slds-col--padded slds-size--1-of-2 slds-medium-size--1-of-2 slds-x-small-size--1-of-1">
       <div className={`slds-form-element ${edit ? '' : 'field-seperator'} ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}>
@@ -446,7 +446,7 @@ export const FieldWithLabel = ({field, value, edit, fc, onChange}) => {
   );
 }
 
-export const FieldWithoutLabel = ({field, value, edit, fc, onChange}) => {
+export function FieldWithoutLabel ({field, value, edit, fc, onChange}) {
   return (
     <div className={`slds-form-element__control ${field.required ? 'slds-is-required' : ''} ${fc.invalid ? 'slds-has-error' : ''}`}  >
       <span className={(edit || field.type === "dropdown_options")? " " : " slds-form-element__static"}>
@@ -457,10 +457,9 @@ export const FieldWithoutLabel = ({field, value, edit, fc, onChange}) => {
   );
 }
 
-
 // *** NEW ListPage
 export function ListPage ({form, query}) {
-  const [ value, setValue ] = useState({status: "notready", records: []})
+  const [ value, setValue ] = useState({status: "wait", records: []})
   const f = DynamicForm.instance.getForm (form._id)
 
   useEffect(() => {
@@ -471,7 +470,7 @@ export function ListPage ({form, query}) {
     const f = DynamicForm.instance.getForm (form._id)
     DynamicForm.instance.query (f._id, query && query).then(
       succRes => setValue({status: "ready", records: succRes}),
-      errRes  => setValue({status: "error", message: errRes.error })
+      errRes  => setValue({status: "error", message: JSON.stringify(errRes.error) })
     )
   }
 
@@ -481,12 +480,11 @@ export function ListPage ({form, query}) {
       { <FormHeader form={f} count={value.records ? value.records.length : 0} buttons={[{title: "New", action: {nav: {component: "RecordPage", formid: f._id, props: {"e": true}}}}]}/>
       }
       </div>
-      { value.status === "error" &&
+      { value.status === "error"?
         <div className="slds-col slds-size--1-of-1">
           <Alert type="error" message={value.message}/>
         </div>
-      }
-      { value.status !== "error" &&
+      :
       <div className="slds-col slds-size--1-of-1">
         <ListMain noheader={true} value={value} form={f} onDataChange={_dataChanged}/>
       </div>
@@ -494,73 +492,6 @@ export function ListPage ({form, query}) {
     </div>
   )
 }
-
-
-/* ListPage_Old - list of records, supports inline editing of embedded docs.
-export class ListPage_Old extends Component {
-
-    constructor(props) {
-      super(props);
-      let df = DynamicForm.instance;
-      this.state = {
-        metaview: df.getForm (props.form._id),
-        value: {status: "wait", records: []}
-      };
-      //this.custom_buttons = this.state.metaview.fields ? this.state.metaview.fields.filter(m => m.type === 'button' && m.display === 'list') : [];
-      //console.log ('ListPage constructor: '+ props.form._id);
-    }
-
-    componentDidMount() {
-      this._dataChanged();
-    }
-
-    _dataChanged() {
-      let df = DynamicForm.instance;
-      console.log ('ListPage componentDidMount, running query : ' + JSON.stringify(this.props.form._id));
-
-      if (this.state.metaview.store === 'metadata') {
-        this.setState({value: {status: "ready", records: this.state.metaview._data}})
-      } else if  (this.state.metaview.store === "rest") {
-        df._callServer(this.state.metaview.url).then(succRes =>
-          this.setState({value: {status: "ready", records: succRes}})
-        )
-      } else {
-        //df.query (this.props.form._id, this.props.query && JSON.parse(this.props.query)).then(
-        df.query (this.props.form._id, this.props.query && this.props.query).then(
-          succRes => this.setState({value: {status: "ready", records: succRes}}),
-          errRes  => this.setState({value: {status: "error", message: errRes.error }})
-        )
-      } 
-    }
-
-    render() {
-      return (
-        <div className="slds-grid slds-wrap">
-          <div className="slds-col slds-size--1-of-1">
-          { <FormHeader form={this.state.metaview} count={this.state.value.records ? this.state.value.records.length : 0} buttons={[{title: "New", action: {nav: {component: "RecordPage", formid: this.props.form._id, props: {"e": true}}}}]}/>
-          }
-          </div>
-          { this.state.value.status === "error" &&
-            <div className="slds-col slds-size--1-of-1">
-              <Alert type="error" message={this.state.value.message}/>
-            </div>
-          }
-          { this.state.value.status !== "error" &&
-          <div className="slds-col slds-size--1-of-1">
-            <ListMain noheader={true} value={this.state.value} form={this.state.metaview} onDataChange={this._dataChanged.bind(this)}/>
-          </div>
-          }
-        </div>
-      );
-    }
-}
-ListPage.propTypes = {
-  // Core
-  urlparam: React.PropTypes.shape({
-    view: React.PropTypes.string.isRequired,
-    q: React.PropTypes.object
-  })
-}*/
 
 export class ListMain extends Component {
   constructor(props) {
@@ -805,152 +736,68 @@ export class ListMain extends Component {
     )
   }
 }
-/*
-ListMain.propTypes = {
-  // Core
-  view: React.PropTypes.shape({
-    store: React.PropTypes.string.isRequired,
-    fields: React.PropTypes.array.isRequired
-  }),
-  value: React.PropTypes.shape({
-    status: React.PropTypes.string.isRequired,
-    records: React.PropTypes.array.isRequired
-  }),
-  // used by childform, to inform data operations
-  parent: React.PropTypes.shape({
-    form_id: React.PropTypes.string.isRequired,
-    field_id: React.PropTypes.string.isRequired,
-    record_id: React.PropTypes.string
-  }),
-  // used by inline edit dropdown, and child forms to inform parent component of data change (parent handles that event)
-  onDataChange: React.PropTypes.func,
-  //used by select picture, when user need to select a item from a list, _id of the item is returned.
-  selected: React.PropTypes.func,
-  // disable actions
-  viewonly: React.PropTypes.bool,
-  // noheader
-  noheader: React.PropTypes.bool,
-};
-ListMain.defaultProps = { value: {status: "waiting", records: []}, viewonly: false, noheader: false };
-*/
-// Top level Form, with FormMan & Related Lists. (called from Router - props much reflect URL params)
-export class RecordPage extends Component {
 
-  constructor(props) {
-    super(props);
+export function RecordPage ({form, e, xid}) {
+  const [ value, setValue ] = useState(xid? {status: "wait", record: {}} : {status: "ready", record: {}})
+  
+  useEffect(() => {
+    _dataChanged()
+  }, [form, xid])
 
-    let df = DynamicForm.instance,
-//          metaview = df.getForm (props.urlparam.view);
-        metaview = df.getForm (props.form._id),
-        crud =  !this.props.xid? "c" : (props.e)?  "u" : "r"
-    //console.log ('RecordPage constructor props: ' + JSON.stringify(props));
-    this.state = {
-      crud: crud,
-      value: (crud === 'u' || crud === 'r')? {status: "wait", record: {}} : {status: "ready", record: {}},
-      metaview: metaview,
-      childformfields: metaview.fields.filter(m => m.type === 'childform'),
-      relatedlistfields: metaview.fields.filter(m => m.type === 'relatedlist')
-
-    };
-    //console.log ('RecordPage constructor setState : ' + JSON.stringify(this.state));
-  }
-
-  componentDidMount() {
-    this._dataChanged();
-  }
-
-  _dataChanged() {
-    //console.log ('RecordPage _dataChanged');
-    if (this.state.crud === 'u' || this.state.crud === 'r') {
-
-      //df.get (this.state.metaview._id, this.props.urlparam.id).then(succVal => {
-      var exp_st = `${this.props.xid}|getbyformId("${this.props.form._id}")`;
-      //console.log (`RecordPage _dataChanged jexl : ${exp_st}`);
-      const df = DynamicForm.instance
-      jexl.eval(exp_st, {user: df.user, app: df.app, appUserData: df.appUserData}).then(
-
-        //const f = DynamicForm.instance.getForm (this.props.form._id)
-        //DynamicForm.instance.getbyId(this.props.form._id, this.props.xid).then(
-        succVal => this.setState({ value: {status: "ready", record: succVal}}), 
-        errval => this.setState({ value: {status: "error", message: `${errval}`}})
+  function _dataChanged() {
+    if (xid) {
+      DynamicForm.instance.getbyId(form._id, xid).then(
+        succRes => setValue({status: "ready", record: succRes}),
+        errRes  => setValue({status: "error", message: errRes.error })
       )
     }
   }
 
-  _importMeta() {
-    let df = DynamicForm.instance,
-        p,
-        appmeta = this.state.value.record;
-
-    for (let meta of appmeta.metadata) {
-      if (!p) {
-        p = df.save ({form: meta.form._id, body: meta.load});
-      } else {
-        p = p.then(() => {
-          // some progress update
-          df.save ({form: meta.form._id, body: meta.load});
-        });
-      }
-    }
-    if (p) {
-      // some progress update
-      p.then (() => {
-        //console.log ('ok');
-        // all done!!
-      });
-    }
-  }
-
-  render() {
-    let df = DynamicForm.instance,
-        self = this,
-        {status, record} = this.state.value;
-
-    //console.log ("Form: rendering state: "); // + JSON.stringify(this.state.value));
+   //console.log ("Form: rendering state: "); // + JSON.stringify(this.state.value));
   /* Removed prop from FormMain - parent={this.props.urlparam.parent}  - will never happen?? */
-    return (
-        <div className="slds-grid slds-wrap">
-            <div className="slds-col slds-size--1-of-1">
-              { <FormHeader form={this.state.metaview}/>
-              }
-            </div>
+  const f = DynamicForm.instance.getForm (form._id)
+  const crud =  !xid? "c" : (e)?  "u" : "r"
+  return (
+    <div className="slds-grid slds-wrap">
+      <div className="slds-col slds-size--1-of-1">
+        { <FormHeader form={f}/>
+        }
+      </div>
 
-          { this.state.value.status === "error" &&
-            <div className="slds-col slds-size--1-of-1">
-              <Alert message={this.state.value.message}/>
-            </div>
-          }
-          { this.state.value.status !== "error" &&
-            <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-                <FormMain key={this.state.metaview._id} value={this.state.value} form={this.state.metaview}  crud={this.state.crud} onDataChange={self._dataChanged.bind(self)}/>
-            </div>
-          }
-          { this.state.value.status !== "error" &&
-            <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-              {this.state.crud === "r"  && this.state.childformfields.map(function(field, i) {
-                let cform = field.child_form && df.getForm(field.child_form._id);
-                if (cform) return (
-                  <div key={`${cform._id}${i}`} style={{padding: "0.5em"}}>
-                    <ListMain title={field.title} parent={{form_id: self.state.metaview._id, record_id: status === 'ready'? record._id : "new", field_id: field._id }} parentrec={record} form={cform} value={{status: status, records: status === "ready"? record[field.name] : []}} onDataChange={self._dataChanged.bind(self)}/>
-                  </div>
-                  );
-                else return (
-                  <Alert key={`err${field.name}`} message={`RecordPage: no childform found in application : ${field.name}`}/>
-                );})}
-            </div>
-          }
-          { this.state.value.status !== "error" &&
-            <div className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
-              {this.state.crud === "r"  && this.state.value.status === "ready" && this.state.relatedlistfields.map(function(field, i) {
-                return (
-                <div key={`${field.child_form._id}${i}`} style={{padding: "0.5em"}}>
-                  <ListPage  form={field.child_form} query={{[field.name]: {_id: record._id}}} />
-                </div>
-              );})}
-            </div>
-          }
-
+      { value.status === "error" &&
+        <div className="slds-col slds-size--1-of-1">
+          <Alert message={value.message}/>
         </div>
-      );
-    }
+      }
+      { value.status !== "error" && [
+
+        <div key="FormMain" className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+            <FormMain key={form._id} value={value} form={f}  crud={crud} onDataChange={_dataChanged}/>
+        </div>,
+
+        <div key="childforms" className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+          {crud === "r"  && value.status === "ready" && f.fields.filter(m => m.type === 'childform').map((field, i) => {
+            let cform = field.child_form && DynamicForm.instance.getForm(field.child_form._id)
+            if (cform) return (
+              <div key={`${cform._id}${i}`} style={{padding: "0.5em"}}>
+                <ListMain title={field.title} parent={{form_id: form._id, record_id: value.status === 'ready'? value.record._id : "new", field_id: field._id }} parentrec={value.record} form={cform} value={{status: value.status, records: value.status === "ready"? value.record[field.name] : []}} onDataChange={_dataChanged}/>
+              </div>
+              );
+            else return (
+              <Alert key={`err${field.name}`} message={`RecordPage: no childform found in application : ${field.name}`}/>
+            );})}
+        </div>,
+      
+        <div key="relatedlists" className="slds-col slds-size--1-of-1 slds-medium-size--1-of-2">
+          {crud === "r"  && value.status === "ready" && f.fields.filter(m => m.type === 'relatedlist').map((field, i) => {
+            return (
+            <div key={`${field.child_form._id}${i}`} style={{padding: "0.5em"}}>
+              <ListPage  form={field.child_form} query={{[field.name]: {_id: value.record._id}}} />
+            </div>
+          );})}
+        </div>
+      ]}
+
+    </div>
+  )
 }

@@ -5,15 +5,15 @@ import {FieldDate, FieldImage} from './dform_fields.jsx';
 import DynamicForm from '../services/dynamicForm.js';
 
 
-export const SvgIcon = ({spriteType, spriteName, small, large, classOverride}) => {
+export function SvgIcon ({spriteType, spriteName, small, large, classOverride}) {
   return (
-    <svg className={`${classOverride  || ""} ${(spriteType === "utility" && !classOverride) ? " icon-utility "  :  " slds-icon "}  ${small ? "slds-icon--small" : ""} ${large ? "slds-icon--large" : ""} slds-icon-${spriteType}-${spriteName.replace(/_/g,"-")}`}>
+    <svg style={{"verticalAlign": "baseline"}} className={`${classOverride  || ""} ${(spriteType === "utility" && !classOverride) ? " icon-utility "  :  " slds-icon "}  ${small ? "slds-icon--small" : ""} ${large ? "slds-icon--large" : ""} slds-icon-${spriteType}-${spriteName.replace(/_/g,"-")}`}>
       <use xlinkHref={`/assets/icons/${spriteType}-sprite/svg/symbols.svg#${spriteName}`}/>
     </svg>
   )
 }
 
-export const IconField = ({value, small, large}) => {
+export function IconField ({value, small, large}) {
   let df = DynamicForm.instance,
       iconform = df.getFormByName("iconSearch");
 
@@ -22,13 +22,13 @@ export const IconField = ({value, small, large}) => {
     if (iconrow)
       return (<SvgIcon spriteType={iconrow.icon.type} spriteName={iconrow.icon.name} small={small} large={large}/>);
     else
-      return (<span></span>);
+      return (<span></span>)
   } else
-    return <Alert type="error" message="iconSearch not available in this app"/>;
+    return <Alert type="error" message="iconSearch not available in this app"/>
 
 }
 
-export const Alert = ({type, message}) => {
+export function Alert ({type, message}) {
   return (
     <div className={"slds-notify slds-notify--alert slds-theme--"+type+" -texture"}>
      <span className="slds-assistive-text">{type}</span>
@@ -40,7 +40,7 @@ export const Alert = ({type, message}) => {
   )
 }
 
-export const UpdatedBy = ({user, date}) => {
+export function UpdatedBy ({user, date}) {
   let df = DynamicForm.instance,
       userform =  df.getFormByName('Users');
   return (
@@ -56,7 +56,7 @@ export const UpdatedBy = ({user, date}) => {
   )
 }
 
-export const Modal = ({children}) => {
+export function Modal ({children}) {
   return (
     <div>
       <div aria-hidden="false" role="dialog" className="slds-modal slds-modal--large slds-fade-in-open">
@@ -66,5 +66,20 @@ export const Modal = ({children}) => {
       </div>
       <div className="slds-modal-backdrop slds-modal-backdrop--open"></div>
     </div>
+  )
+}
+
+
+export function Waiting({msg}) {
+  return (
+    <div className="slds">
+    <div className="slds-spinner_container">
+      <div className="slds-spinner--brand slds-spinner slds-spinner--large" role="alert">
+        <div className="slds-spinner__dot-a"></div>
+        <div className="slds-spinner__dot-b"></div>
+      </div>
+    </div>
+    <div className="slds-align--absolute-center"><span className="slds-badge">{msg}</span></div>
+  </div>
   )
 }

@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react'
-import { Alert } from './components/utils.jsx'
+import { Alert, Waiting } from './components/utils.jsx'
 import {useRouter, ensureAppInUrl, decodeCurrentURI} from './components/router.jsx'
 import {PageHeader} from './components/headers.jsx'
 import DynamicForm from './services/dynamicForm.js'
@@ -86,14 +86,6 @@ export default ({appid}) => {
       <div className="slds-align--absolute-center" style={{"marginTop": "50px"}}><span className="slds-badge"><a href="/">Return to Home</a></span></div>
     </div>
   ); else return (
-    <div className="slds">
-      <div className="slds-spinner_container">
-        <div className="slds-spinner--brand slds-spinner slds-spinner--large" role="alert">
-          <div className="slds-spinner__dot-a"></div>
-          <div className="slds-spinner__dot-b"></div>
-        </div>
-      </div>
-      <div className="slds-align--absolute-center"><span className="slds-badge">{appState.bootmsg}</span></div>
-    </div>
+    <Waiting msg={appState.bootmsg}/>
   )
 }

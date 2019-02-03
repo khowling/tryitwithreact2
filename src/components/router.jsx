@@ -6,7 +6,7 @@ import {ListMain, ListPage, RecordPage}  from './dform.jsx'
 import {TimeLine} from './timeline.jsx'
 import {Login, Register }  from './auth.jsx'
 
-import {ECOMPage} from '../components-ms/ecommerce.jsx'
+import {ECOMPage, ECOMItem} from '../components-ms/ecommerce.jsx'
 
 const DEFAULT_LANDING = 'TileList';
 
@@ -40,7 +40,7 @@ function getRouteObj(appid, component, formid, recordid, props) {
   // shortcut for props form id
   if (formid) routeJson.props.form = {_id: formid};
   // shortcut for prop for RecordPage
-  if (recordid) routeJson.props.xid =  `"${recordid}"`;
+  if (recordid) routeJson.props.xid =  recordid // `"${recordid}"`;
   if (props) routeJson.props = Object.assign (routeJson.props, props)
   // console.log ('Router.URLFor : ' + JSON.stringify(routeJson));
   return routeJson //_encodeHash (routeJson);
@@ -124,7 +124,7 @@ export function ensureAppInUrl (newappid) {
 
 const listeners = [];
 var  _Router_backUrl = null;
-const _Router_FACTORIES = Object.assign({}, ...[ECOMPage, ListMain, TileList, ListPage, RecordPage, TimeLine, Register, Login, Register].map(mod => { return ({[mod.name]: React.createFactory(mod)})}))
+const _Router_FACTORIES = Object.assign({}, ...[ECOMPage, ECOMItem, ListMain, TileList, ListPage, RecordPage, TimeLine, Register, Login, Register].map(mod => { return ({[mod.name]: React.createFactory(mod)})}))
 
 export function useRouter (booted, loadedApp, newAppRequestedFn) {
   const [renderRoute, setRenderRoute] = useState()

@@ -74,7 +74,7 @@ export class FieldAttachment extends Component {
 }
 
 // ------------------------------------------------------------------------------------------
-export function FieldImage({fielddef, value, onChange, edit, inlist}) {
+export function FieldImage({fielddef, value, onChange, edit = false, inlist}) {
 
   const [ picFileList, setPicFileList ] = useState({state: "wait", records: []})
   const [ inputValue, setInputValue ] = useState(value)
@@ -162,7 +162,13 @@ export function FieldImage({fielddef, value, onChange, edit, inlist}) {
   if (!edit) {
     return (
       <div className={inlist && "slds-avatar slds-avatar--circle slds-avatar--x-small"} style={!inlist ? {marginBottom: "4px"} : {}}>
-        <a href={img_src} ><img style={{maxHeight: "150px"}} src={img_src} alt=""/></a>
+        { !inlist?
+          <a href={img_src} >
+            <img style={{}} src={img_src} alt=""/>
+          </a>
+          :
+          <img style={{}} src={img_src} alt=""/>
+        }
       </div>
     )
 
@@ -207,18 +213,18 @@ function FieldReferenceLookupRenderProp ({search_form, record, render, children}
   //console.log (`FieldReferenceLookupRenderProp called ${search_form.name}`);
   const df = DynamicForm.instance
   if (!record) {
-    return  <span style={{color: "red"}}><IconField value={search_form.icon} small={true}/>no data</span>;
+    return  <span style={{color: "red"}}><IconField value={search_form.icon} small={true}/>no data</span>
   } else if (record.error) {
-    return  <span key={record._id} style={{color: "red"}}><IconField value={search_form.icon} small={true}/>{record.error}</span>;
+    return  <span key={record._id} style={{color: "red"}}><IconField value={search_form.icon} small={true}/>{record.error}</span>
   } else {
     let priimage, pritext
     for (let fld of search_form.fields) {
       if (fld.display === 'primary' && record[fld.name]) {
         //console.log (`FieldReferenceLookupRenderProp ${fld.type} ${JSON.stringify(record[fld.name])}`);
         if (fld.type === 'icon' || fld.type === 'image') {
-          priimage = <Field fielddef={fld}  value={record[fld.name]} inlist={true} />;
+          priimage = <Field fielddef={fld}  value={record[fld.name]} inlist={true} />
         } else if (fld.type === "reference" && fld.search_form._id === df.getFormByName("iconSearch")._id )
-          priimage = <IconField value={record[fld.name]} small={true}/>;
+          priimage = <IconField value={record[fld.name]} small={true}/>
         else if (!pritext) {
           //pritext = <Field fielddef={fld} value={record[fld.name]}/>
           pritext = record[fld.name]
@@ -226,7 +232,7 @@ function FieldReferenceLookupRenderProp ({search_form, record, render, children}
       }
     }
     if (!priimage) {
-      priimage = <IconField value={{_id:"std30"}} small={true}/>;
+      priimage = <IconField value={{_id:"std30"}} small={true}/>
     }
     return children({pritext, priimage});
   }
@@ -316,7 +322,7 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
       return (
         <FieldReferenceLookupRenderProp search_form={sform} record={inputValue}>
           {({pritext, priimage}) => (
-          <span className={`slds-pill ${fielddef.createnew_form? "slds-pill_link" : "" }`}>
+          <span className={`slds-pill ${fielddef.createnew_form? "slds-pill_link" : "" }`} style={{"border": "0"}}>
             
             <span className="slds-pill__icon_container">
               <span className="slds-icon_container">
@@ -355,9 +361,8 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
             {({pritext, priimage}) => (
             <div className="slds-combobox__form-element slds-input-has-icon slds-input-has-icon_left-right" role="none">
               
-                <span className="slds-icon_container slds-icon-standard-account slds-combobox__input-entity-icon" title="Account">
+                <span className="slds-icon_container slds-combobox__input-entity-icon">
                   {priimage}
-                  <span className="slds-assistive-text">Account</span>
                 </span>
                 <input className="slds-input slds-combobox__input slds-combobox__input-value" autoComplete="off"  type="text" placeholder="Select an Option" readOnly defaultValue={pritext}/>
               
@@ -416,7 +421,7 @@ export function FieldReference ({fielddef, value, onChange, edit}) {
                   {({pritext, priimage}) => (
                   <div className="slds-media slds-listbox__option slds-listbox__option_entity slds-listbox__option_has-meta" >
                     <span className="slds-media__figure slds-listbox__option-icon">
-                      <span className="slds-icon_container slds-icon-standard-account">
+                      <span className="slds-icon_container">
                       {priimage}
                       </span>
                     </span>
@@ -747,17 +752,17 @@ export function Field ({fielddef, value, edit, inlist, onChange}) {
       case 'childform':
         //let cform = MetaStore.getForm (fielddef.child_form);
         //field = <ChildForm form={cform} value={value}/>;
-        field = (<span>childform not supported here</span>);
-        break;
+        field = <span>childform not supported here</span>
+        break
       case "icon":
         if (value)
-            field = (<span><SvgIcon spriteType={value.type} spriteName={value.name} small={true}/></span>);
+            field = <SvgIcon spriteType={value.type} spriteName={value.name} small={true}/>
         else
-          field = (<span/>);
-        break;
+          field = <span/>
+        break
       default:
         field = <span>Unknown fieldtype {fielddef.type}</span>;
-        break;
+        break
   } else {
     field = <InputStateful fielddef={fielddef} value={value} onChange={_handleValueChange} />
   }
